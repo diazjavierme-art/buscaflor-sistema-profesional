@@ -1,0 +1,1625 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Buscaflor · Centro de Operaciones</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+<style>
+:root{
+  --navy:#1F4E79; --navy2:#1F3864; --azul:#2E75B6; --azulclaro:#D6E4F0; --azulpal:#DEEAF1;
+  --papel:#FFFFFF; --linea:#D3DCE4; --linea2:#A9B8C6; --texto:#152230; --apagado:#63737F;
+  --alerta:#8A4B10; --alertafondo:#FDF6EC; --verde:#2E7D5B; --verdefondo:#D5F5E3;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,"Roboto Mono",monospace;
+  --sans:"Helvetica Neue",Arial,Helvetica,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--papel);color:var(--texto);font-family:var(--sans);font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit}
+
+.marca{background:var(--navy2);color:#fff;padding:13px 20px;display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+.marca .n{font-weight:700;letter-spacing:.18em;font-size:15px}
+.marca .s{font-size:11px;letter-spacing:.16em;text-transform:uppercase;opacity:.75}
+.marca .v{margin-left:auto;font-family:var(--mono);font-size:11px;opacity:.6}
+
+nav{border-bottom:1px solid var(--linea);display:flex;overflow-x:auto;background:#F7FAFC}
+nav button{background:none;border:0;border-bottom:2px solid transparent;padding:11px 18px;cursor:pointer;white-space:nowrap;font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:var(--apagado)}
+nav button[aria-selected="true"]{color:var(--navy);border-bottom-color:var(--navy);font-weight:700;background:#fff}
+nav button:focus-visible{outline:2px solid var(--azul);outline-offset:-2px}
+nav .cnt{font-family:var(--mono);font-size:10px;opacity:.65;margin-left:6px}
+
+main{max-width:100%;margin:0 auto;padding:0 20px 80px}
+section{margin-top:28px}
+.eyebrow{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--apagado);border-bottom:1px solid var(--linea);padding-bottom:6px;margin-bottom:14px;display:flex;align-items:center;gap:10px}
+.eyebrow b{color:var(--navy);font-weight:700}
+.eyebrow .der{margin-left:auto;font-family:var(--mono);letter-spacing:0;text-transform:none;font-size:11px}
+
+.clave{display:grid;grid-template-columns:1fr auto auto;border:1px solid var(--linea2)}
+.clave .c{padding:9px 14px;border-right:1px solid var(--linea)}
+.clave .c:last-child{border-right:0}
+.clave label{display:block;font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--apagado);margin-bottom:3px}
+.clave input,.clave select{width:100%;border:0;background:none;padding:2px 0;font-family:var(--mono);font-size:14px}
+.clave input:focus,.clave select:focus{outline:0;box-shadow:0 2px 0 var(--azul)}
+.estado{display:flex;align-items:center;gap:7px;font-size:11px;padding:0 14px;white-space:nowrap}
+.punto{width:8px;height:8px;border-radius:50%;background:var(--linea2);flex:0 0 8px}
+.punto.on{background:var(--verde)}
+
+.soltar{border:1px dashed var(--linea2);padding:26px 20px;text-align:center;cursor:pointer;transition:background .12s,border-color .12s;background:#FBFDFE}
+.soltar:hover,.soltar.activa{background:#EFF6FB;border-color:var(--azul)}
+.soltar p{margin:0;font-size:13px}
+.soltar small{color:var(--apagado);font-size:11px}
+.soltar.off{opacity:.45;cursor:not-allowed}
+.cola{margin-top:10px;max-height:190px;overflow:auto}
+.arch{display:flex;align-items:center;gap:10px;font-size:12px;border-bottom:1px solid var(--linea);padding:6px 2px}
+.arch .nom{font-family:var(--mono);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.arch .est{font-size:11px;color:var(--apagado);white-space:nowrap}
+.arch .est.mal{color:#A02020}
+.arch .est.bien{color:var(--verde)}
+
+.desplazable{overflow-x:auto;border:1px solid var(--linea)}
+table{border-collapse:collapse;font-size:12px}
+thead th{background:var(--navy);color:#fff;font-size:9px;letter-spacing:.06em;text-transform:uppercase;font-weight:700;text-align:center;padding:7px 6px;white-space:pre-line;position:sticky;top:0;z-index:2;border-right:1px solid rgba(255,255,255,.15)}
+tbody td{border-bottom:1px solid var(--linea);border-right:1px solid var(--linea);padding:0;white-space:nowrap;background:#fff}
+tbody td input,tbody td select{width:100%;min-width:100%;border:0;background:transparent;padding:5px 6px;font-size:12px}
+tbody td.n input{text-align:right;font-family:var(--mono)}
+tbody td.c input,tbody td.c select{text-align:center}
+tbody td.calc{font-family:var(--mono);text-align:right;padding:5px 6px;color:var(--apagado);background:#F6F9FB}
+tbody td input:focus,tbody td select:focus{outline:0;background:#EAF3FA}
+tbody tr.mala td{background:var(--alertafondo)}
+tbody tr.mala td.calc{background:#F7EEE0}
+td.clave1{background:var(--azulclaro)!important;font-weight:600}
+td.total1{background:var(--verdefondo)!important;font-weight:600}
+tr.banda td{background:var(--azul)!important;color:#fff;font-size:10px;letter-spacing:.14em;text-transform:uppercase;padding:5px 8px;font-weight:700}
+.quitar{background:none;border:0;color:var(--apagado);cursor:pointer;padding:4px 7px;font-size:14px;line-height:1}
+.quitar:hover{color:#A02020}
+.vacio{padding:24px 10px;text-align:center;color:var(--apagado);font-size:12px;background:#fff}
+
+.acciones{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.btn{border:1px solid var(--linea2);background:#fff;padding:8px 15px;cursor:pointer;font-size:11px;letter-spacing:.09em;text-transform:uppercase}
+.btn:hover{border-color:var(--navy);color:var(--navy)}
+.btn.solido{background:var(--navy);color:#fff;border-color:var(--navy)}
+.btn.solido:hover{background:var(--azul);border-color:var(--azul)}
+.btn:disabled{opacity:.4;cursor:default}
+.btn:focus-visible{outline:2px solid var(--azul);outline-offset:2px}
+
+.cifras{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));border:1px solid var(--linea)}
+.cifra{padding:11px 14px;border-right:1px solid var(--linea)}
+.cifra:last-child{border-right:0}
+.cifra .k{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--apagado)}
+.cifra .v{font-family:var(--mono);font-size:19px;margin-top:2px}
+.cifra .u{font-size:11px;color:var(--apagado)}
+.cifra.deuda .v{color:var(--alerta)}
+
+.avisos{margin-top:12px;max-height:230px;overflow:auto}
+.aviso{display:flex;gap:10px;padding:8px 11px;border-left:3px solid var(--alerta);background:var(--alertafondo);font-size:12px;margin-bottom:5px}
+.aviso.ok{border-left-color:var(--verde);background:#EFF8F3}
+.aviso .m{font-family:var(--mono);font-size:11px;color:var(--apagado);flex:0 0 auto}
+
+.oculto{display:none!important}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));border:1px solid var(--linea)}
+.kpi{padding:13px 15px;border-right:1px solid var(--linea);border-bottom:1px solid var(--linea)}
+.kpi .k{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--apagado)}
+.kpi .v{font-family:var(--mono);font-size:23px;margin:3px 0 2px;display:flex;align-items:baseline;gap:6px}
+.kpi .v small{font-size:12px;color:var(--apagado);font-family:var(--sans)}
+.kpi .d{font-size:11px;color:var(--apagado);line-height:1.35}
+.kpi.bien .v{color:var(--verde)}
+.kpi.ojo .v{color:var(--alerta)}
+.kpi.mal .v{color:#A02020}
+.kpi .marca{display:inline-block;font-size:9px;letter-spacing:.1em;text-transform:uppercase;padding:1px 6px;border:1px solid currentColor;margin-left:4px;vertical-align:middle}
+.pagos{border:1px solid var(--linea);padding:12px 14px}
+.pfila{display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:12px}
+.pfila label{color:var(--apagado);font-size:10px;letter-spacing:.14em;text-transform:uppercase}
+.pfila select,.pfila input{border:1px solid var(--linea2);padding:6px 8px;font-family:var(--mono);font-size:12px;background:#fff}
+.tr{border:1px solid var(--linea);margin-top:10px}
+.tr .cab{background:#F2F7FB;padding:9px 13px;font-size:12px;display:flex;gap:14px;flex-wrap:wrap;align-items:center;border-bottom:1px solid var(--linea)}
+.tr .cab b{font-family:var(--mono)}
+.tr .cab .imp{margin-left:auto;font-family:var(--mono);font-size:15px}
+.tr .cuerpo{padding:9px 13px;font-size:12px}
+.tr .lista{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px}
+.tr .fac{border:1px solid var(--linea2);padding:3px 8px;font-family:var(--mono);font-size:11px;cursor:pointer;background:#fff}
+.tr .fac.on{background:#E6F4EC;border-color:var(--verde);color:var(--verde)}
+.tr .fac:hover{border-color:var(--navy)}
+.tr .resto{margin-top:8px;font-size:12px;color:var(--alerta)}
+.tr .resto.ok{color:var(--verde)}
+
+/* ---------- Gráficas ---------- */
+.grafico{border:1px solid var(--linea);background:#fff;padding:6px 4px}
+.grafico svg{display:block;width:100%;height:auto}
+.grafico .vacio{border:0}
+.gx{font-family:var(--sans);font-size:11px;fill:var(--apagado)}
+.gy{font-family:var(--mono);font-size:10px;fill:var(--apagado)}
+.gval{font-family:var(--mono);font-size:10px;fill:var(--texto)}
+.gtit{font-family:var(--sans);font-size:10px;fill:var(--apagado);letter-spacing:.1em}
+.grid{stroke:var(--linea);stroke-width:1}
+.cero{stroke:var(--linea2);stroke-width:1}
+.leyenda{display:flex;flex-wrap:wrap;gap:6px 16px;padding:10px 2px 0;font-size:11px}
+.leyenda span{display:inline-flex;align-items:center;gap:6px;color:var(--apagado)}
+.leyenda i{width:10px;height:10px;display:inline-block;border-radius:2px}
+.leyenda b{font-family:var(--mono);font-weight:500;color:var(--texto)}
+.ranking{border:1px solid var(--linea)}
+.rfila{display:grid;grid-template-columns:minmax(130px,190px) 1fr 110px 64px;align-items:center;gap:12px;padding:7px 14px;border-bottom:1px solid var(--linea)}
+.rfila:last-child{border-bottom:0}
+.rfila .nom{font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rbar{height:10px;background:#F0F4F7}
+.rbar i{display:block;height:100%}
+.rfila .imp,.rfila .pct{font-family:var(--mono);font-size:12px;text-align:right}
+.rfila .pct{color:var(--apagado)}
+@media(max-width:640px){.rfila{grid-template-columns:1fr 90px 54px}.rfila .rbar{display:none}}
+footer{border-top:1px solid var(--linea);margin-top:36px;padding:15px 20px;font-size:11px;color:var(--apagado)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<header class="marca">
+  <span class="n">BUSCAFLOR</span>
+  <span class="s">Compras y gastos</span>
+  <span class="v">v4.0</span>
+</header>
+
+<nav role="tablist">
+  <button role="tab" id="tabProv" aria-selected="true" onclick="verTab('prov')">Registro de proveedores<span class="cnt" id="cProv">0</span></button>
+  <button role="tab" id="tabVall" aria-selected="false" onclick="verTab('vall')">Vallinoto Cargo<span class="cnt" id="cVall">0</span></button>
+  <button role="tab" id="tabVent" aria-selected="false" onclick="verTab('vent')">Ventas<span class="cnt" id="cVent">0</span></button>
+  <button role="tab" id="tabRat" aria-selected="false" onclick="verTab('rat')">Ratios</button>
+</nav>
+
+<main>
+
+<section>
+  <div class="eyebrow"><b>1</b> Lectura automática <span class="der">la clave se queda en este navegador, nunca sale del equipo</span></div>
+  <div class="clave">
+    <div class="c">
+      <label for="apiKey">Clave de API de Anthropic</label>
+      <input id="apiKey" type="password" placeholder="sk-ant-..." autocomplete="off" spellcheck="false">
+    </div>
+    <div class="c">
+      <label for="modelo">Modelo</label>
+      <select id="modelo">
+        <option value="claude-sonnet-4-6">Sonnet 4.6</option>
+        <option value="claude-opus-4-8">Opus 4.8</option>
+        <option value="claude-haiku-4-5-20251001">Haiku 4.5</option>
+      </select>
+    </div>
+    <div class="estado"><span class="punto" id="punto"></span><span id="estadoTxt">Sin clave</span></div>
+  </div>
+  <div class="acciones">
+    <button class="btn" id="btnProbar">Probar conexión</button>
+    <button class="btn" id="btnOlvidar">Olvidar clave</button>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow"><b>2</b> Suelta las facturas <span class="der">reparte solo: Vallinoto a su libro, el resto al registro</span></div>
+  <div class="soltar" id="soltar" tabindex="0" role="button" aria-label="Soltar facturas en PDF">
+    <p id="soltarTxt">Añade la clave arriba para poder soltar facturas</p>
+    <small>PDF o foto de la factura para leerla con la IA · o un Excel ya generado por esta página para recuperarlo</small>
+  </div>
+  <input type="file" id="ficheros" multiple accept=".pdf,.xlsx,.png,.jpg,.jpeg,.webp" class="oculto">
+  <div class="cola" id="cola"></div>
+</section>
+
+<!-- ===== PROVEEDORES ===== -->
+<div id="panelProv">
+<section>
+  <div class="eyebrow"><b>3</b> Registro de facturas · múltiples proveedores <span class="der" id="detProv">0 facturas</span></div>
+  <div class="desplazable"><table id="tProv"><thead id="hProv"></thead><tbody id="bProv"></tbody></table></div>
+  <div class="acciones">
+    <button class="btn" onclick="addProv()">Añadir a mano</button>
+    <button class="btn" onclick="guardar()">Guardar trabajo</button>
+    <button class="btn" onclick="document.getElementById('fJson').click()">Cargar trabajo</button>
+    <button class="btn" onclick="vaciar('prov')">Vaciar</button>
+    <button class="btn solido" onclick="excelProv()">Descargar registro de proveedores</button>
+  </div>
+  <div class="cifras" style="margin-top:16px">
+    <div class="cifra"><div class="k">Facturas</div><div class="v" id="pNum">0</div></div>
+    <div class="cifra"><div class="k">Base imponible</div><div class="v" id="pBase">0,00</div><div class="u">EUR</div></div>
+    <div class="cifra"><div class="k">IVA soportado</div><div class="v" id="pIva">0,00</div><div class="u">EUR</div></div>
+    <div class="cifra"><div class="k">Total</div><div class="v" id="pTotal">0,00</div><div class="u">EUR</div></div>
+    <div class="cifra deuda"><div class="k">Pendiente</div><div class="v" id="pPend">0,00</div><div class="u" id="pPendDet">EUR</div></div>
+  </div>
+  <div class="avisos" id="avProv"></div>
+</section>
+<section>
+  <div class="eyebrow"><b>4</b> Gasto por mes <span class="der" id="ejeProv">base imponible, sin IVA</span></div>
+  <div class="grafico" id="gProvMes"></div>
+  <div class="leyenda" id="lProvMes"></div>
+</section>
+<section>
+  <div class="eyebrow"><b>5</b> Reparto por categoría <span class="der" id="ejeProvCat">todo el periodo</span></div>
+  <div class="ranking" id="gProvCat"></div>
+</section>
+</div>
+
+<!-- ===== VALLINOTO ===== -->
+<div id="panelVall" class="oculto">
+<section>
+  <div class="eyebrow"><b>3</b> Facturas Vallinoto Cargo <span class="der" id="detVall">0 facturas</span></div>
+  <div class="desplazable"><table id="tVall"><thead id="hVall"></thead><tbody id="bVall"></tbody></table></div>
+  <div class="acciones">
+    <button class="btn" onclick="addVall()">Añadir a mano</button>
+    <button class="btn" onclick="guardar()">Guardar trabajo</button>
+    <button class="btn" onclick="document.getElementById('fJson').click()">Cargar trabajo</button>
+    <button class="btn" onclick="vaciar('vall')">Vaciar</button>
+    <button class="btn solido" onclick="excelVall()">Descargar libro Vallinoto</button>
+  </div>
+  <div class="cifras" style="margin-top:16px">
+    <div class="cifra"><div class="k">Facturas</div><div class="v" id="vNum">0</div></div>
+    <div class="cifra"><div class="k">Bultos</div><div class="v" id="vBultos">0</div></div>
+    <div class="cifra"><div class="k">Base exenta</div><div class="v" id="vExenta">0,00</div><div class="u">EUR</div></div>
+    <div class="cifra"><div class="k">Base IVA</div><div class="v" id="vBase">0,00</div><div class="u">EUR</div></div>
+    <div class="cifra"><div class="k">IVA 21%</div><div class="v" id="vIva">0,00</div><div class="u">EUR</div></div>
+    <div class="cifra"><div class="k">Total</div><div class="v" id="vTotal">0,00</div><div class="u">EUR</div></div>
+    <div class="cifra deuda"><div class="k">Pendiente</div><div class="v" id="vPend">0,00</div><div class="u" id="vPendDet">EUR</div></div>
+  </div>
+  <div class="avisos" id="avVall"></div>
+</section>
+<section>
+  <div class="eyebrow"><b>4</b> Pagos <span class="der" id="detPagos">arrastra el justificante de transferencia arriba</span></div>
+  <div class="pagos">
+    <div class="pfila">
+      <label for="mesPago">Marcar un mes entero como pagado</label>
+      <select id="mesPago"></select>
+      <input id="fechaPago" type="date">
+      <button class="btn" onclick="marcarMes()">Marcar</button>
+      <button class="btn" onclick="desmarcarMes()">Quitar marca</button>
+    </div>
+  </div>
+  <div id="listaPagos"></div>
+</section>
+<section>
+  <div class="eyebrow"><b>5</b> Gasto por mes <span class="der" id="ejeVall">importe base, sin IVA</span></div>
+  <div class="grafico" id="gVallMes"></div>
+  <div class="leyenda" id="lVallMes"></div>
+</section>
+<section>
+  <div class="eyebrow"><b>6</b> Coste por bulto <span class="der">importe base ÷ bultos despachados</span></div>
+  <div class="grafico" id="gVallBulto"></div>
+</section>
+<section>
+  <div class="eyebrow"><b>7</b> Reparto por concepto <span class="der">todo el periodo</span></div>
+  <div class="ranking" id="gVallCat"></div>
+</section>
+</div>
+
+<!-- ===== VENTAS ===== -->
+<div id="panelVent" class="oculto">
+<section>
+  <div class="eyebrow"><b>1</b> Ventas por mes <span class="der" id="detVent"></span></div>
+  <div class="grafico" id="gVentMes"></div>
+  <div class="leyenda" id="lVentAnios"></div>
+</section>
+<section>
+  <div class="eyebrow"><b>2</b> Cobro de lo facturado <span class="der" id="detCobro">solo meses con listado cargado</span></div>
+  <div class="kpis" id="kCobro"></div>
+</section>
+<section>
+  <div class="eyebrow"><b>3</b> Mismo mes, año contra año <span class="der">importe facturado</span></div>
+  <div class="desplazable"><table id="tAnios"><thead id="hAnios"></thead><tbody id="bAnios"></tbody></table></div>
+</section>
+<section>
+  <div class="eyebrow"><b>4</b> Mezcla de producto <span class="der" id="detFam">tallos vendidos por familia</span></div>
+  <div class="ranking" id="gFamilias"></div>
+</section>
+<section>
+  <div class="eyebrow"><b>5</b> Meses <span class="der">corrige o añade a mano lo que falte</span></div>
+  <div class="desplazable"><table id="tVent"><thead id="hVent"></thead><tbody id="bVent"></tbody></table></div>
+  <div class="acciones"><button class="btn" onclick="addVenta()">Añadir mes</button></div>
+</section>
+</div>
+
+<!-- ===== RATIOS ===== -->
+<div id="panelRat" class="oculto">
+<section>
+  <div class="eyebrow"><b>1</b> Margen en vivo <span class="der" id="detVivo">despejado del IVA de aduana</span></div>
+  <div class="kpis" id="kVivo"></div>
+  <div class="grafico" id="gMargen" style="margin-top:14px"></div>
+  <div class="avisos" id="avVivo"></div>
+</section>
+<section>
+  <div class="eyebrow"><b>2</b> Rentabilidad del último cierre <span class="der" id="detRat"></span></div>
+  <div class="kpis" id="kRent"></div>
+</section>
+<section>
+  <div class="eyebrow"><b>3</b> Cobro y pago <span class="der">el hueco entre las dos es lo que financias tú</span></div>
+  <div class="kpis" id="kCirc"></div>
+  <div class="grafico" id="gGap"></div>
+</section>
+<section>
+  <div class="eyebrow"><b>4</b> Estructura financiera</div>
+  <div class="kpis" id="kFin"></div>
+</section>
+<section>
+  <div class="eyebrow"><b>5</b> Logística y coste <span class="der">calculado en vivo con lo que tengas cargado</span></div>
+  <div class="kpis" id="kLog"></div>
+</section>
+<section>
+  <div class="eyebrow"><b>6</b> A dónde va cada 100 € de venta <span class="der" id="detCien"></span></div>
+  <div class="ranking" id="gCien"></div>
+</section>
+</div>
+
+<input type="file" id="fJson" accept=".json" class="oculto">
+</main>
+
+<footer>
+  Base exenta = Tasas fito + Plástico + IVA aduana · Base IVA = Importe base − Base exenta · Las facturas de Vallinoto se archivan por fecha de emisión, no por fecha de llegada · IFC despacho de aduana, ADM transporte y pallets · Vallinoto no entra en cuentas a pagar · Las compras a fincas de Ecuador y Colombia van en USD a su propio control, no aquí.
+</footer>
+
+<script id="datosIniciales" type="application/json">{"vk":["numero","fechaFactura","fechaLlegada","expediente","sReferencia","nDeclaracion","manifiesto","proveedor","transporte","bultos","pesoBruto","pesoNeto","plastico","ivaAduana","comisionOficial","entregaImport","thc","tasasFito","paletizacion","handlingDoc","manipPerec","tasaMantServicio","otrosConceptos","importeBase","iva21","total","pagado"],"v":[["V 2600001","2026-01-01","2026-01-02","IFC260005","","26ES002801I00770R6","07567351992","","",105.0,1388.0,1283.0,0.9,732.47,60.0,49.0,101.32,16.08,62.46,0,0,0,0,1022.23,57.28,1079.51,"Sí"],["V 2600015","2026-01-02","2026-01-02","IFC260002","","26ES002801I006HVR8","075-67345563","Ecuador Cargo System","",66.0,1159.0,1093.0,0.9,768.84,60.0,46.0,79.97,8.04,52.16,0,0,0,0,1015.91,50.01,1065.92,"Sí"],["V 2600178","2026-01-08","2026-01-07","IFC260070","","26ES002801I011N1R7","07567642223","Ecuador Cargo","",60.0,1033.0,973.0,0.45,697.85,60.0,49.0,75.41,8.04,46.49,0,0,0,0,937.24,48.49,985.73,"Sí"],["V 2600247","2026-01-10","2026-01-07","IFC260066","","26ES002801I01BHDR3","07567352051","","",83.0,1063.0,980.0,0.9,581.23,60.0,49.0,77.6,16.08,47.84,0,0,0,0,832.65,49.23,881.88,"Sí"],["V 2600498","2026-01-15","2026-01-14","IFC260143","","26ES002801I028W7R1","07567642260","Ecuador Cargo","AVION IB138",61.0,1042.0,981.0,0.45,723.3,90.0,49.0,76.07,8.04,46.89,0,0,0,0,993.75,55.01,1048.76,"Sí"],["V 2600563","2026-01-16","2026-01-15","IFC260149","","26ES002801I02H2NR8","72945750051","","AVION AV10",90.0,1253.0,1164.0,0.45,640.33,90.0,0,58.89,16.08,56.39,50.05,200.48,38.07,0,1150.74,103.71,1254.45,"Sí"],["V 2600908","2026-01-22","2026-01-21","IFC260210","","26ES002801I03KXHR4","075-67352121","","AVION IB154",104.0,1329.0,1225.0,0.9,696.81,60.0,49.0,97.02,52.28,59.81,0,0,0,0,1015.82,55.82,1071.64,"Sí"],["V 2600970","2026-01-23","2026-01-21","IFC260214","","26ES002801I03T10R4","07567642315","Ecuador Cargo","AVION IB138",58.0,1021.0,963.0,0.9,697.84,60.0,49.0,74.53,8.04,45.95,0,0,0,0,936.26,48.19,984.45,"Sí"],["V 2601282","2026-01-29","2026-01-28","IFC260286","","26ES002801I04V1FR5","07567351900","","AVION IB154",59.0,836.0,778.0,0.45,463.25,60.0,49.0,61.03,16.08,37.62,0,0,0,0,687.43,43.61,731.04,"Sí"],["V 2601338","2026-01-30","2026-01-30","IFC260304","","26ES002801I050XIR8","72945750121","","AVION AV182",36.0,370.0,334.0,0.45,191.93,60.0,0,17.39,8.04,16.65,50.05,85.81,38.07,0,468.39,56.27,524.66,"Sí"],["V 2601359","2026-01-30","2026-01-29","IFC260290","","26ES002801I051K8R7","07567642330","Ecuador Cargo","AVION IB138",91.0,1615.0,1524.0,0.45,1474.65,60.0,49.0,117.9,8.04,72.68,0,0,0,0,1782.72,62.91,1845.63,"Sí"],["V 2601573","2026-02-03","2026-02-02","IFC260355","","26ES002801I05FERR0","075-67647716","Ecuador Cargo","AVION IBE03215",26.0,492.0,466.0,0.45,638.51,30.0,49.0,35.92,8.04,22.14,0,0,0,0,784.06,28.78,812.84,"Sí"],["V 2601574","2026-02-03","2026-02-02","IFC260358","","26ES002801I05FE6R0","07567642201","Ecuador Cargo","AVION IB138",40.0,707.0,667.0,0.45,941.28,50.0,49.0,51.61,8.04,31.82,0,0,0,0,1132.2,38.31,1170.51,"Sí"],["V 2601614","2026-02-03","2026-02-02","IFC260381","","26ES002801I05MW5R0","07567647613","Saftec SA","AVION IB138",74.0,1280.0,1206.0,0.45,2446.15,60.0,49.0,93.44,8.04,57.6,0,0,0,0,2714.68,54.61,2769.29,"Sí"],["V 2601624","2026-02-03","2026-02-02","IFC260370","","26ES002801I05MVKR1","07567645981","Saftec SA","AVION IB338",70.0,1247.0,1100.0,0.9,1763.59,60.0,49.0,91.03,8.04,56.12,0,0,0,0,2028.68,53.79,2082.47,"Sí"],["V 2601704","2026-02-05","2026-02-02","IFC260379","","26ES002801I05UEUR3","07567645944","Saftec SA","AVION IB338",25.0,473.0,400.0,0.45,329.9,60.0,49.0,34.53,8.04,21.29,0,0,0,0,503.21,34.61,537.82,"Sí"],["V 2601711","2026-02-05","","ADM260009","TRANSPORTES ENERO","","","","",0,0,0,0,0,0,0,0,0,0,0,0,0,1856.0,1856.0,389.76,2245.76,"Sí"],["V 2601724","2026-02-05","2026-02-04","IFC260403","","26ES002801I062QCR5","07567352062","","AVION IB152",179.0,2228.0,2049.0,0.9,1549.52,60.0,49.0,162.64,16.08,100.26,0,0,0,0,1938.4,78.1,2016.5,"Sí"],["V 2601772","2026-02-06","2026-02-05","IFC260413","","26ES002801I068C2R0","07567642341","Ecuador Cargo System","AVION IB138",99.0,1509.0,1114.0,0.45,1434.35,60.0,49.0,110.16,8.04,67.91,0,0,0,0,1729.91,60.28,1790.19,"Sí"],["V 2601777","2026-02-06","2026-02-06","IFC260440","","26ES002801I06ALVR1","99611899823","Ecuador Cargo System","AVION UX138",96.0,1485.0,1355.0,0.45,1529.71,60.0,0,0,8.04,66.83,49.8,222.75,31.0,0,1968.58,90.38,2058.96,"Sí"],["V 2601940","2026-02-08","2026-02-07","IFC260472","","26ES002801I06FL2R4","07567681386","","AVION IB152",46.0,517.0,471.0,0.45,531.16,60.0,49.0,37.74,16.08,23.27,0,0,0,0,717.7,35.7,753.4,"Sí"],["V 2602092","2026-02-12","2026-02-11","IFC260513","","26ES002801I07B1KR1","07567681434","","AVION IB154",91.0,1248.0,1157.0,0.45,703.75,60.0,49.0,91.1,16.08,56.16,0,0,0,0,976.54,53.81,1030.35,"Sí"],["V 2602105","2026-02-12","2026-02-11","IFC260521","","26ES002801I07B8GR7","07567647764","Ecuador Cargo/Logike Cargo","AVION IB138",58.0,953.0,810.0,0.45,737.49,60.0,49.0,69.57,8.04,42.89,0,0,0,0,967.44,46.51,1013.95,"Sí"],["V 2602395","2026-02-19","2026-02-18","IFC260584","","26ES002801I08I8KR8","07567681471","","AVION IB154",88.0,1202.0,1114.0,0.45,664.47,60.0,49.0,87.75,16.08,54.09,0,0,0,0,931.84,52.68,984.52,"Sí"],["V 2602404","2026-02-19","","ADM260016","PALLETS ENERO","","","","",0,0,0,0,0,0,0,0,0,0,0,0,0,207.75,207.75,43.63,251.38,"Sí"],["V 2602410","2026-02-19","2026-02-18","IFC260594","","26ES002801I08IZ8R6","07567647753","Ecuador Cargo/Logike Cargo","AVION IB138",59.0,991.0,930.0,0.45,725.58,60.0,49.0,72.34,8.04,44.6,0,0,0,0,960.01,47.45,1007.46,"Sí"],["V 2602671","2026-02-25","2026-02-24","IFC260663","","26ES002801I09FM0R1","07567711011","Saftec SA","AVION IB138",23.0,381.0,300.0,0.45,291.91,30.0,49.0,27.81,8.04,17.15,0,0,0,0,424.36,26.03,450.39,"Sí"],["V 2602740","2026-02-26","2026-02-25","IFC260671","","26ES002801I09M02R9","07567681530","","AVION IB152",90.0,1187.0,1097.0,0.45,660.28,30.0,49.0,86.65,16.08,53.42,0,0,0,0,895.88,46.0,941.88,"Sí"],["V 2602742","2026-02-26","2026-02-25","IFC260680","","26ES002801I09LTUR5","07567647801","Ecuador Cargo/Logike Cargo","AVION IB138",27.0,438.0,380.0,0.45,316.05,30.0,49.0,31.97,8.04,19.71,0,0,0,0,455.22,27.44,482.66,"Sí"],["V 2603030","2026-03-04","","ADM260024","TRANSPORTES FEBRERO","","","","",0,0,0,0,0,0,0,0,0,0,0,0,0,2436.0,2436.0,511.56,2947.56,"Sí"],["V 2603068","2026-03-05","2026-03-04","IFC260777","","26ES002801I0ANTRR6","07567714150","Ecuador Cargo/Logike Cargo","AVION IB138",39.0,668.0,600.0,0.45,456.82,60.0,49.0,48.76,8.04,30.06,0,0,0,0,653.13,39.44,692.57,"Sí"],["V 2603069","2026-03-05","2026-03-03","IFC260758","","26ES002801I0ANTXR0","07567714496","Saftec SA","AVION IB138",24.0,403.0,350.0,0.45,299.62,60.0,49.0,29.42,8.04,18.14,0,0,0,0,464.67,32.88,497.55,"Sí"],["V 2603130","2026-03-07","2026-03-04","IFC260771","","26ES002801I0AZSGR7","07567681596","","AVION IB152",90.0,1188.0,1020.0,0.45,633.35,60.0,49.0,86.72,16.08,53.46,0,0,0,0,899.06,52.33,951.39,"Sí"],["V 2603246","2026-03-09","2026-03-06","IFC260799","","26ES002801I0B76HR9","07567681622","Benchmark Growers SAS","AVION IB156",30.0,486.0,456.0,0.45,263.82,60.0,49.0,35.48,8.04,21.87,0,0,0,0,438.66,34.93,473.59,"Sí"],["V 2603274","2026-03-09","2026-03-09","IFC260825","","26ES002801I0B9N1R5","07567714183","Ecuador Cargo","AVION IB138",24.0,404.0,380.0,0.45,290.65,60.0,49.0,29.48,8.04,18.18,0,0,0,0,455.8,32.9,488.7,"Sí"],["V 2603348","2026-03-11","2026-03-10","IFC260847","","26ES002801I0BM6JR0","07567714511","Saftec SA","AVION IB138",14.0,237.0,200.0,0.45,168.58,60.0,49.0,17.3,8.04,10.67,0,0,0,0,314.04,28.76,342.8,"Sí"],["V 2603392","2026-03-12","2026-03-11","IFC260866","","26ES002801I0BTXYR2","07567714220","Ecuador Cargo/Logike Cargo","AVION IB138",58.0,1019.0,930.0,0.45,814.04,60.0,49.0,74.39,8.04,45.86,0,0,0,0,1051.78,48.14,1099.92,"Sí"],["V 2603416","2026-03-13","","ADM260030","PALLETS FEBRERO","","","","",0,0,0,0,0,0,0,0,0,0,0,0,0,246.0,246.0,51.66,297.66,"Sí"],["V 2603436","2026-03-13","2026-03-11","IFC260853","","26ES002801I0BZG1R0","07567681633","","AVION IB138",137.0,2085.0,1947.0,0.9,1049.32,60.0,49.0,152.2,16.08,93.83,0,0,0,0,1421.33,74.56,1495.89,"Sí"],["V 2603541","2026-03-15","2026-03-13","IFC260888","","26ES002801I0C50FR2","07567681670","","AVION IB154",56.0,790.0,734.0,0.45,412.55,60.0,49.0,57.67,8.04,35.55,0,0,0,0,623.26,42.47,665.73,"Sí"],["V 2603622","2026-03-17","2026-03-15","IFC260912","","26ES002801I0CL0UR9","07567681714","","AVION IB156",39.0,613.0,574.0,0.45,390.71,60.0,49.0,44.75,8.04,24.59,0,0,0,0,577.54,37.45,614.99,"Sí"],["V 2603667","2026-03-18","2026-03-17","IFC260945","","26ES002801I0CU6UR1","07567714592","Saftec SA","AVION IB138",23.0,397.0,374.0,0.9,294.19,60.0,49.0,28.97,8.04,17.87,0,0,0,0,458.97,32.73,491.7,"Sí"],["V 2603690","2026-03-19","2026-03-18","IFC260952","","26ES002801I0D2VSR6","07567681740","","AVION IB154",171.0,2014.0,1843.0,0.9,1064.22,60.0,49.0,147.02,16.08,90.63,0,0,0,0,1427.85,72.8,1500.65,"Sí"],["V 2603719","2026-03-19","2026-03-18","IFC260959","","26ES002801I0D3MHR9","07567714290","Ecuador Cargo","AVION IB138",48.0,765.0,717.0,0.45,535.41,60.0,49.0,55.84,8.04,34.43,0,0,0,0,743.17,41.85,785.02,"Sí"],["V 2603776","2026-03-21","2026-03-19","IFC260977","","26ES002801I0DD7XR5","07567714312","Ecuador Cargo","AVION IB334",58.0,960.0,902.0,0.45,569.07,60.0,49.0,70.08,8.04,38.4,0,0,0,0,795.04,45.67,840.71,"Sí"],["V 2603856","2026-03-23","2026-03-22","IFC261032","","26ES002801I0DT8AR7","07567714334","Ecuador Cargo","AVION IB338",50.0,808.0,758.0,0.45,565.38,60.0,49.0,58.98,8.04,36.36,0,0,0,21.0,799.21,47.32,846.53,"Sí"],["V 2603924","2026-03-24","2026-03-22","IFC261029","","26ES002801I0E013R0","07567714301","Ecuador Cargo","AVION IB138",54.0,815.0,761.0,0.45,632.11,60.0,49.0,59.5,8.04,36.68,0,0,0,0,845.78,43.09,888.87,"Sí"],["V 2603964","2026-03-25","2026-03-22","IFC261035","","26ES002801I0E14CR1","07567714603","Saftec SA","AVION IB334",46.0,862.0,800.0,0.45,361.22,60.0,49.0,62.93,8.04,38.79,0,0,0,0,580.43,44.25,624.68,"Sí"],["V 2604006","2026-03-26","2026-03-22","IFC261024","","26ES002801I0E8A8R4","07567681681","","AVION IB154",66.0,846.0,780.0,0.45,424.27,60.0,49.0,61.76,8.04,38.07,0,0,0,0,641.59,43.85,685.44,"Sí"],["V 2604027","2026-03-27","2026-03-25","IFC261070","","26ES002801I0EHT8R2","07567681810","","AVION IB154",114.0,1481.0,1023.0,0.9,789.87,60.0,49.0,108.11,16.08,51.84,0,0,0,0,1075.8,56.48,1132.28,"Sí"],["V 2604029","2026-03-27","2026-03-24","IFC261059","","26ES002801I0EHP4R8","07567714662","Saftec SA","AVION IB138",29.0,505.0,400.0,0.45,345.98,60.0,49.0,36.86,8.04,17.68,0,0,0,0,518.01,34.34,552.35,"Sí"],["V 2604056","2026-03-27","2026-03-25","IFC261074","","26ES002801I0ENYER4","07567714356","Ecuador Cargo","AVION IB138",77.0,1182.0,1020.0,0.45,812.15,60.0,49.0,86.29,8.04,53.19,0,0,0,0,1069.12,52.18,1121.3,"Sí"],["V 2604073","2026-03-27","2026-03-25","IFC261069","","26ES002801I0EP95R0","07567714684","Saftec SA","AVION IB334",56.0,975.0,700.0,0.45,615.71,60.0,49.0,71.18,8.04,43.88,0,0,0,0,848.26,47.05,895.31,"Sí"],["V 2604344","2026-04-01","2026-03-31","IFC261140","","26ES002801I0FEEJR0","07567714754","SAFTEC SA","AVION IB138",31.0,530.0,499.0,0.45,221.61,60.0,49.0,38.69,8.04,23.85,0,0,0,0,401.64,36.02,437.66,"Sí 19/05"],["V 2604370","2026-04-02","2026-04-01","IFC261142","","26ES002801I0FI9ZR6","07567685763","","AVION IB156",95.0,1270.0,1175.0,0.45,716.42,60.0,49.0,92.71,16.08,57.15,0,0,0,0,991.81,54.36,1046.17,"Sí 19/05"],["C 2690052","2026-04-07","2026-03-22","IFC261032","","26ES002801I0DT8AR7","07567714334","Ecuador Cargo","AVION IB338",50.0,808.0,758.0,0,0,0,0,0,0,-21.0,0,0,0,0,-21.0,-4.41,-25.41,"Sí 19/05"],["V 2604593","2026-04-09","","ADM260041","TRANSPORTES MARZO","","","","",0,0,0,0,0,0,0,0,0,0,0,0,0,2796.0,2796.0,587.16,3383.16,"Sí 19/05"],["V 2604600","2026-04-09","2026-04-09","IFC261263","","26ES002801I0GKTDR6","07567685822","","AVION IB152",80.0,1091.0,1011.0,0.45,641.84,60.0,49.0,79.64,16.08,49.1,0,0,0,0,896.11,49.93,946.04,"Sí 19/05"],["V 2604658","2026-04-10","","ADM260046","PALLETS MARZO","","","","",0,0,0,0,0,0,0,0,0,0,0,0,0,607.5,607.5,127.58,735.08,"Sí 19/05"],["V 2604671","2026-04-10","2026-04-07","IFC261223","","26ES002801I0GTS9R9","07567719223","SAFTEC SA","AVION IB138",25.0,441.0,416.0,0.45,318.73,60.0,49.0,32.21,8.04,19.85,0,0,0,0,488.28,33.82,522.1,"Sí 19/05"],["V 2604812","2026-04-13","2026-04-11","IFC261296","","26ES002801I0H1IBR1","07567716235","Ecuador Cargo System","AVION IB138",39.0,629.0,590.0,0.45,465.55,60.0,49.0,45.88,8.04,28.31,0,0,0,0,657.23,38.47,695.7,"Sí 19/05"],["V 2604927","2026-04-15","2026-04-15","IFC261357","","26ES002801I0HKF3R1","07567719234","SAFTEC SA","AVION IB138",26.0,379.0,353.0,0.9,315.78,60.0,49.0,27.67,8.04,17.05,0,0,0,0,478.44,32.28,510.72,"Sí 19/05"],["V 2604973","2026-04-16","2026-04-16","IFC261382","","26ES002801I0HT2LR2","07567716250","Ecuador Cargo","AVION IB138",69.0,1123.0,1054.0,0.45,966.26,60.0,49.0,81.96,8.04,50.54,0,0,0,0,1216.25,50.72,1266.97,"Sí 23/06"],["V 2605006","2026-04-17","2026-04-15","IFC261369","","26ES002801I0HX3QR9","07567685903","","AVION IB154",86.0,1153.0,1067.0,0.45,686.71,60.0,49.0,84.17,16.08,51.89,0,0,0,0,948.3,51.46,999.76,"Sí 23/06"],["V 2605248","2026-04-22","","ADM260051","TRANSPORTES ABRIL 1ª QUINCENA","","","","",0,0,0,0,0,0,0,0,0,0,0,0,0,780.0,780.0,163.8,943.8,"Sí 23/06"],["V 2605302","2026-04-23","2026-04-21","IFC261487","","26ES002801I0IYUPR2","07567719374","SAFTEC SA","AVION IB138",31.0,487.0,447.0,0.45,402.87,60.0,49.0,35.55,8.04,21.92,0,0,0,0,577.83,34.96,612.79,"Sí 23/06"],["V 2605349","2026-04-23","2026-04-22","IFC261499","","26ES002801I0J0X5R5","07567685984","","AVION IB154",114.0,1338.0,1224.0,0.9,737.82,60.0,49.0,97.67,16.08,60.21,0,0,0,0,1021.68,56.04,1077.72,"Sí 23/06"],["V 2605364","2026-04-24","2026-04-23","IFC261514","","26ES002801I0J13AR8","07567716294","Ecuador Cargo System","AVION IB138",82.0,1363.0,1100.0,0.45,1030.47,60.0,49.0,99.47,8.04,61.34,0,0,0,0,1308.77,56.66,1365.43,"Sí 23/06"],["V 2605541","2026-04-27","2026-04-27","IFC261575","","26ES002801I0JJ90R2","07567719890","Ecuador Cargo","AVION IB138",40.0,663.0,623.0,0.45,521.25,60.0,49.0,48.38,8.04,29.84,0,0,0,0,716.96,39.32,756.28,"Sí 23/06"],["V 2605624","2026-04-29","2026-04-28","IFC261604","","26ES002801I0JYHYR3","07567719433","SAFTEC SA","AVION IB138",31.0,540.0,430.0,0.45,474.78,60.0,49.0,39.43,8.04,24.3,0,0,0,0,656.0,36.27,692.27,"Sí 23/06"],["V 2605729","2026-04-30","2026-04-30","IFC261619","","26ES002801I0K5Z9R0","07567716305","Ecuador Cargo / Logike Cargo","AVION IB138",60.0,1019.0,959.0,0.45,765.62,60.0,49.0,74.35,8.04,45.86,0,0,0,0,1003.32,48.13,1051.45,"Sí 23/06"],["V 2605731","2026-04-30","2026-04-29","IFC261608","","26ES002801I0K5EER0","99613863301","","AVION UX194",92.0,1307.0,1215.0,0.45,812.85,60.0,0,0,16.08,58.82,49.8,196.05,0,0,1194.05,76.58,1270.63,"Sí 23/06"],["V 2605950","2026-05-06","2026-05-06","IFC261694","","26ES002801I0L09GR2","075-67719330","SAFTEC SA","AVION IB138",29.0,474.0,445.0,0.45,365.24,60.0,49.0,34.6,8.04,21.33,0,0,0,0,538.66,34.64,573.3,"Sí 23/06"],["V 2605988","2026-05-07","2026-05-06","IFC261690","","26ES002801I0L731R0","07567688401","","AVION IB156",84.0,1023.0,941.0,0.45,567.54,60.0,49.0,74.68,16.08,46.04,0,0,0,0,813.79,48.24,862.03,"Sí 23/06"],["V 2605993","2026-05-07","2026-05-06","IFC261703","","26ES002801I0L68LR6","07567719912","Ecuador Cargo","AVION IB138",66.0,1122.0,1056.0,0.45,884.27,60.0,49.0,81.93,8.04,50.49,0,0,0,0,1134.18,50.7,1184.88,"Sí 23/06"],["V 2606030","2026-05-08","","ADM260058","TRANSPORTES ABRIL 2ª QUINCENA","","","","",0,0,0,0,0,0,0,0,0,0,0,0,0,1495.0,1495.0,313.95,1808.95,"Sí 23/06"],["V 2606286","2026-05-13","2026-05-12","IFC261786","","26ES002801I0M4MJR0","07567895155","SAFTEC SA","AVION IB138",32.0,551.0,500.0,0.45,413.85,60.0,49.0,40.22,8.04,24.8,0,0,0,0,596.36,36.54,632.9,"Sí 23/06"],["V 2606322","2026-05-14","2026-05-13","IFC261804","","26ES002801I0MC4NR0","075 67719971","Ecuador Cargo / Logike Cargo","AVION IB138",69.0,1170.0,1020.0,0.45,802.93,60.0,49.0,85.41,8.04,52.65,0,0,0,0,1058.48,51.88,1110.36,"Sí 23/06"],["V 2606346","2026-05-15","2026-05-13","IFC261796","","26ES002801I0MHDWR3","07567688460","","AVION IB138",97.0,1296.0,1198.0,0.9,716.36,60.0,49.0,94.61,16.08,58.32,0,0,0,0,995.27,55.01,1050.28,"Sí 23/06"],["V 2606603","2026-05-20","2026-05-20","IFC261894","","26ES002801I0N7XDR6","07567895251","SAFTEC SA","AVION IB138",30.0,521.0,491.0,0.45,380.78,60.0,49.0,38.03,8.04,23.45,0,0,0,0,559.75,35.8,595.55,"Sí 23/06"],["V 2606624","2026-05-21","2026-05-20","IFC261906","","26ES002801I0NDXMR8","07567688574","","AVION IB156",80.0,1003.0,918.0,0.45,565.07,60.0,49.0,73.22,16.08,45.14,0,0,0,0,808.96,47.75,856.71,"Sí 23/06"],["V 2606653","2026-05-21","2026-05-21","IFC261913","","26ES002801I0NFG3R5","075-67719993","Ecuador Cargo System","AVION IB138",32.0,550.0,500.0,0.45,361.76,60.0,49.0,40.11,8.04,24.75,0,0,0,0,544.11,36.51,580.62,"Sí 23/06"],["V 2606851","2026-05-26","","ADM260072","PALLETS ABRIL","","","","",0,0,0,0,0,0,0,0,0,0,0,0,0,285.75,285.75,60.01,345.76,"Sí 23/06"],["V 2606973","2026-05-28","2026-05-27","IFC262007","","26ES002801I0PKGMR0","075-67688515","","AVION IB156",105.0,1490.0,1385.0,0.9,814.08,60.0,49.0,108.77,16.08,67.05,0,0,0,0,1115.88,59.81,1175.69,"Sí 23/06"],["V 2607007","2026-05-28","2026-05-26","IFC262003","","26ES002801I0PLCZR3","07567895321","SAFTEC SA","AVION IB138",24.0,419.0,350.0,0.45,299.44,60.0,49.0,30.57,8.04,18.86,0,0,0,0,466.36,33.27,499.63,"Sí 23/06"],["V 2607040","2026-05-29","2026-05-28","IFC262019","","26ES002801I0PUBCR7","07567720052","Ecuador Cargo System","AVION IB138",50.0,845.0,795.0,0.45,595.01,60.0,49.0,61.68,8.04,38.03,0,0,0,0,812.21,43.83,856.04,"Sí 23/06"],["V 2607269","2026-06-03","2026-06-02","IFC262084","","26ES002801I0QKQ7R9","07567898246","SAFTEC SA","AVION IB138",24.0,416.0,54.0,0.45,349.91,60.0,49.0,30.39,8.04,18.72,0,0,0,0,516.51,33.2,549.71,"Sí 21/07"],["V 2607283","2026-06-04","2026-06-03","IFC262089","","26ES002801I0QR3SR2","07567686080","","AVION IB156",86.0,1103.0,1017.0,0.45,615.94,60.0,49.0,80.52,16.08,49.64,0,0,0,0,871.63,50.22,921.85,"Sí 21/07"],["V 2607305","2026-06-04","2026-06-04","IFC262103","","26ES002801I0QTN7R8","075-67897944","Ecuador Cargo","AVION IB138",36.0,610.0,574.0,0.45,420.66,60.0,49.0,44.49,8.04,27.45,0,0,0,0,610.09,38.0,648.09,"Sí 21/07"],["V 2607324","2026-06-04","","ADM260081","TRANSPORTES MAYO","","","","",0,0,0,0,0,0,0,0,0,0,0,0,0,2548.0,2548.0,535.08,3083.08,"Sí 21/07"],["V 2607353","2026-06-05","","ADM260084","PALLETS MAYO","","","","",0,0,0,0,0,0,0,0,0,0,0,0,0,145.5,145.5,30.56,176.06,"Sí 21/07"],["V 2607612","2026-06-11","2026-06-10","IFC262167","","26ES002801I0S0XMR4","07567688692","","AVION IB152",87.0,1121.0,1034.0,0.45,640.48,60.0,49.0,81.83,16.08,50.45,0,0,0,0,898.29,50.67,948.96,"Sí 21/07"],["V 2607663","2026-06-12","2026-06-10","IFC262179","","26ES002801I0S0VMR5","07567897966","Ecuador Cargo","AVION",52.0,928.0,850.0,0.45,600.79,60.0,49.0,89.21,8.04,54.99,0,0,0,0,862.48,53.17,915.65,"Sí 21/07"],["V 2607664","2026-06-12","2026-06-11","IFC262191","","26ES002801I0S7ZAR7","07567897966","Ecuador Cargo","AVION",20.0,294.0,240.0,0.45,232.69,20.0,0,0,0,0,0,0,0,0,253.14,4.2,257.34,"Sí 21/07"],["V 2607974","2026-06-19","2026-06-16","IFC262253","","26ES002801I0T7B6R6","07567899451","SAFTEC SA","AVION IB138",42.0,685.0,643.0,0.45,292.74,60.0,49.0,50.0,8.04,30.83,0,0,0,0,491.06,39.86,530.92,"Sí 21/07"],["V 2607975","2026-06-19","2026-06-17","IFC262273","","26ES002801I0T7B1R0","07561649615","Ecuador Cargo","AVION IB138",34.0,605.0,500.0,0.45,411.92,60.0,49.0,44.19,8.04,27.23,0,0,0,0,600.83,37.89,638.72,"Sí 21/07"],["V 2607981","2026-06-19","2026-06-17","IFC262263","","26ES002801I0T7A1R1","07567688751","","AVION IB154",99.0,1318.0,1219.0,0.45,754.68,60.0,49.0,96.21,16.08,59.31,0,0,0,0,1035.73,55.55,1091.28,"Sí 21/07"],["V 2608239","2026-06-24","2026-06-24","IFC262342","","26ES002801I0U2SGR5","07567899353","SAFTEC SA","AVION IB138",21.0,346.0,290.0,0.45,256.2,60.0,49.0,25.27,8.04,15.57,0,0,0,0,414.53,31.47,446.0,"Sí 21/07"],["V 2608304","2026-06-25","2026-06-24","IFC262361","","26ES002801I0UAPUR6","07562351391","Ecuador Cargo / Logike Cargo","AVION IB138",54.0,926.0,810.0,0.45,644.28,60.0,49.0,67.6,8.04,41.67,0,0,0,0,871.04,45.84,916.88,"Sí 21/07"],["V 2608305","2026-06-25","2026-06-24","IFC262354","","26ES002801I0UAPSR8","07568006256","","AVION IB156",104.0,1394.0,1290.0,0.9,788.89,60.0,49.0,101.76,16.08,62.73,0,0,0,0,1079.36,57.43,1136.79,"Sí 21/07"]],"pk":["numero","fecha","proveedor","cif","categoria","concepto","base","iva1pct","iva1imp","iva2pct","iva2imp","irpf","total","formaPago"],"p":[["E23000705","2023-09-18","Casflower, S.L.","B91578088","🌸 Flores / Producto","Lisiantus Extra Blanco (1 ud)",3.5,0.1,0.35,0,0,0.0,3.85,"La Caixa (30 días)"],["Exp. 0000999","2025-12-08","Ayuntamiento de La Rinconada (OPAEF)","P4109400B","⚠️ Multas / Sanciones","Multa tráfico mat. 4682MDR — estacionamiento zona carga (bonif. 50%)",40.0,0.0,0.0,0,0,0.0,40.0,"Pagado"],["260101183014823","2026-01-01","Ayvens Spain Mobility Solutions","A79235334","🚗 Renting / Vehículo","Cuota Renting — MERCEDES GLA 4270LVC — Enero 2026",409.56,0.21,86.01,0,0,0.0,495.57,"Recibo domiciliado"],["2500667162","2026-01-01","CaixaRenting (Arval Service Lease)","A60303004","🚗 Renting / Vehículo","Cuota Renting — Peugeot 3008 Hybrid 6934LVL — Enero 2026",387.18,0.21,81.31,0,0,0.0,468.49,"Recibo domiciliado"],["CMS4323694","2026-01-04","","","","",214.22,0.21,44.99,0,0,0.0,259.21,"Recibo domiciliado"],["2600134","2026-01-05","Getru Logistics B.V.","25056469","🚚 Transporte / Mensajería","Transporte 2 palés flores frescas Vallinoto→Buscaflor (+ supl. gasoil 1%)",137.36,0.0,0.0,0,0,0.0,137.36,"Transferencia (venc. 04/02/2026)"],["26A0399179","2026-01-07","Carrefour S.A.","A50016417","🔩 Material / Suministros","Balizas V16 GY2 Homologada Goodyear x3 (incl. desc. club -0,82€)",74.36,0.21,15.61,0,0,0.0,89.15,"Mastercard *2392"],["096393/5/26/000089","2026-01-09","Repsol Soluciones Energéticas S.A.","A28005277","⛽ Combustible","Efitec 95 — E.S. Chucena Norte — Mat. 0842KXD (24,97 L)",32.17,0.21,6.76,0,0,0.0,38.93,"Pagado en caja"],["096347/5/26/000028","2026-01-13","Repsol Soluciones Energéticas S.A.","A28005277","⛽ Combustible","Diesel e+ — E.S. Orta Pérez Andrés Jesús — Mat. 0842KXD (42,57 L)",53.3,0.21,11.19,0,0,0.0,64.49,"Pagado en caja"],["A/00084","2026-01-15","Notaría Francisco Javier López Cano","28517724R","🏠 Seguros / Inmobiliario","Compraventa inmueble: escritura, copias, testimonios (+ retención IRPF 15% -138,13€)",920.88,0.21,193.38,0,0,0.0,1012.03,"Transferencia"],["A/00085","2026-01-15","Notaría Francisco Javier López Cano","28517724R","🏠 Seguros / Inmobiliario","Acta titular Real Ley 10/2010 — copia, matriz, testimonios (+ retención IRPF 15% -11,36€)",75.74,0.21,15.91,0,0,0.0,83.24,"Pagado"],["340/N26","2026-01-19","Dabevica (Inv. y Proy. Dabevica S.L.)","B11814092","🌸 Flores / Producto","Helecho Cuero Golden x25p (25 ud × 4,25€)",106.25,0.1,10.63,0,0,0.0,116.88,"Transferencia"],["000012","2026-01-19","Garage23amg (Gabriel Ángel Acosta Bonilla)","14324593D","🔧 Reparación / Taller","Mantenimiento Ford 0842KXD — aceite, filtros, mano de obra",146.55,0.21,30.78,0,0,0.0,177.33,"Pagado"],["FVREG26-00239","2026-01-21","Sistemas de Embalaje Sorsa S.A.","A41028777","🔩 Material / Suministros","Bobinas fleje 3000m RA1B x4 + IPNR impuesto envases plástico",130.58,0.21,27.42,0,0,0.0,158.0,"Transferencia 30 días"],["058264572","2026-01-22","Allianz / PIB Group España","A28007748","🏠 Seguros / Inmobiliario","Póliza seguro hogar — C/Música 8, Chipiona (Costa Ballena) — 1/2/2026 a 31/1/2027",170.13,0,26.69,0,0,0.0,196.82,"Domiciliación anual"],["61077549845","2026-01-24","Repsol Comercializadora Electricidad y Gas","A78099169","💡 Suministros (Luz/Gas)","Derechos acceso y enganche — Av. Música 8, Chipiona (Costa Ballena)",99.67,0.21,20.93,0,0,0.0,120.6,"Recibo domiciliado"],["546/N26","2026-01-26","Dabevica (Inv. y Proy. Dabevica S.L.)","B11814092","🌸 Flores / Producto","Eucaliptus Cinerea + Helecho Costa Rica + Rosas Freedom/Explorer ECU",575.0,0.1,57.5,0,0,0.0,632.5,"Transferencia"],["605/N26","2026-01-27","Dabevica (Inv. y Proy. Dabevica S.L.)","B11814092","🌸 Flores / Producto","ABONO — Helecho Costa Rica super x12p (-12 ud × 4,00€)",-48.0,0.1,-4.8,0,0,0.0,-52.8,"Abono"],["86935","2026-01-27","Mercado Rivera S.L.","B11084050","🌸 Flores / Producto","Clavel Blanco 70 (600 ud) + Cubos Amarillos Rivera (2 ud)",138.0,0.1,13.2,0.21,1.26,0.0,152.46,"Transferencia"],["E26000048","2026-01-30","Casflower, S.L.","B91578088","🌸 Flores / Producto","Clavel EXP 70 cm Blanco (300 ud)",69.0,0.1,6.9,0,0,0.0,75.9,"La Caixa (30 días)"],["A 2026001","2026-01-30","Bondai Flowers S.L.","B88075775","📋 Servicios Profesionales","Servicios y gestión — Enero 2026",3000.0,0.21,630.0,0,0,0.0,3630.0,"Pendiente"],["M261605","2026-01-31","Coflores SLU","B29916862","🌸 Flores / Producto","Rosas Freedom 60 (200 ud) + Rosas Explorer 50 (25 ud)",133.0,0.1,13.3,0.21,0.0,0.0,146.3,"Transferencia"],["N 2026/001738","2026-01-31","Alas Courier S.L. (TIPSA)","B28252444","🚚 Transporte / Mensajería","Envíos TIPSA 10h (5) + 14h (6) + Tasa carburante",311.61,0.21,65.44,0,0,0.0,377.05,"Transferencia 30 días"],["A/5.491","2026-01-31","Miras Abogados y Asesores Tributarios S.L.P.","J91584960","⚖️ Asesoría / Gestoría","Constitución SCP: contrato, Mod.600, Mod.036 (x2), Certif. Digital Camerfirma",459.02,0.21,96.39,0,0,0.0,555.41,"Transferencia"],["A/5.544","2026-01-31","Miras Abogados y Asesores Tributarios S.L.P.","J91584960","⚖️ Asesoría / Gestoría","Cuota gestión fiscal mensual + gestión laboral (2 empleados)",410.0,0.21,86.1,0,0,0.0,496.1,"Recibo domiciliado"],["A12600768","2026-01-31","Verdnatura Levante S.L.","B97377015","🌸 Flores / Producto","Flores, plantas, papel y material decorativo (21 albaranes) — Enero 2026",3332.44,0.1,324.96,0.21,17.4,0.0,3674.8,"La Caixa"],["V-26-01-13091","2026-01-31","Plenergy Grupo S.L.","B42630690","⛽ Combustible","Gasoleo A — Mats. 0842KXD, 1966KML, 6472LDK — Enero 2026",346.42,0.21,72.74,0,0,0.0,419.16,"Factura"],["0003341/A","2026-01-31","Inversiones y Producciones Tiber, S.L.","B72272800","🌸 Flores / Producto","Eucalipto, Tuya, Margarita, Longi.Asiat.Rosa, Margarita Euro — Enero 2026",721.0,0.1,72.1,0,0,0.0,793.1,"Domiciliación"],["260201183014249","2026-02-01","Ayvens Spain Mobility Solutions","A79235334","🚗 Renting / Vehículo","Cuota Renting — MERCEDES GLA 4270LVC — Febrero 2026",409.56,0.21,86.01,0,0,0.0,495.57,"Recibo domiciliado"],["2600037021","2026-02-01","CaixaRenting (Arval Service Lease)","A60303004","🚗 Renting / Vehículo","Cuota Renting — Peugeot 3008 Hybrid 6934LVL — Febrero 2026",387.18,0.21,81.31,0,0,0.0,468.49,"Recibo domiciliado"],["CMS4354669","2026-02-04","Mercedes-Benz Financial Services E.F.C., S.A.","A80121490","🚗 Renting / Vehículo","Cuota arrendamiento financiero — Mercedes Sprinter chasis W1N9N0CB0TJ177242 — Febrero 2026",214.22,0.21,44.99,0,0,0.0,259.21,"Recibo domiciliado"],["FE20265100313363","2026-02-05","CIDE HCenergía S.A. (CHC)","A15017512","💡 Suministros (Luz/Gas)","Luz nave Pol. San Nicolás — Enero 2026 (546 kWh)",85.38,0.21,17.93,0,0,0.0,103.31,"Domiciliación IBAN"],["006/25","2026-02-10","José Manuel Portela Martínez (autónomo)","48811984G","🚚 Transporte / Mensajería","Transporte y entrega de flores",600.0,0.21,126.0,0,0,90.0,636.0,"Transferencia"],["AB/609","2026-02-16","Disi Servicios Informáticos, S.L.","B55722920","🔧 Mantenimiento / ERP","ABONO — Contrato Servicio Tarifa L a3ERP (Cuota mensual)",-303.68,0.21,-63.77,0,0,0.0,-367.45,"Recibo domiciliado"],["150675/1FN","2026-02-16","Elvea Flor, S.L.","B11354016","🌸 Flores / Producto","Eucalyptus (35 ud × 2,20 €)",77.0,0.1,7.7,0,0,0.0,84.7,"Transferencia"],["PE2600362144","2026-02-17","EMASESA","A41004066","💡 Suministros (Luz/Gas)","Suministro agua — Pol. San Nicolás, 5 m³ (09/12/25–10/02/26) — Contrato 0552299376",37.84,0.1,3.52,0,0,0.0,41.36,"Domiciliación bancaria"],["623-20260146","2026-02-20","Papelería y Distribuciones Miraflores 6, S.L.","B91023713","🔩 Material / Suministros","Papel DIN-A4 80gr Copystar 500H x10 resmas",34.0,0.21,7.14,0,0,0.0,41.14,"Pendiente"],["TCS11260366","2026-02-27","Sevilla Wagen","A41386293","🔧 Reparación / Taller","Rep. VW Caravelle F6472LDK — Cilindro cierre + MO Mecánica + Recambios (Cilindro Y10 + Cubierta Y14)",228.88,0.21,48.06,0,0,0.0,276.94,"Tarjeta crédito/débito"],["V-26-02-12775","2026-02-28","Plenergy Grupo, S.L.","B42630690","⛽ Combustible","Gasoleo A — 3 matrículas (0842KXD, 1966KML, 6472LDK) — Febrero 2026",390.67,0.21,82.04,0,0,0.0,472.71,"Factura"],["A12606072","2026-02-28","Verdnatura Levante S.L.","B97377015","🌸 Flores / Producto","Flores y plantas varias (33 albaranes) — Febrero 2026",8288.75,0.1,828.88,0,0,0.0,9117.63,"La Caixa"],["N 2026/001874","2026-02-28","Alas Courier S.L. (TIPSA)","B28252444","🚚 Transporte / Mensajería","Mensajería TIPSA — febrero 2026 (13 albaranes urbanos)",232.66,0.21,48.86,0,0,0.0,281.52,"Transferencia 30 días"],["0003356/A","2026-02-28","Inversiones y Producciones Tiber, S.L.","B72272800","🌸 Flores / Producto","Eucalipto, Estatice, Margarita, Ruscus, Tuya, Girasol — feb 2026 (múltiples albaranes)",1644.0,0.1,164.4,0,0,0.0,1808.4,"Domiciliación"],["A 2026003","2026-02-28","Bondai Flowers S.L.","B88075775","📋 Servicios Profesionales","Servicios y gestión — Febrero 2026",1655.0,0.21,347.55,0,0,0.0,2002.55,"Pendiente"],["M263215","2026-02-28","Coflores SLU","B29916862","🌸 Flores / Producto","Clavel Standard Rojo x20 (800 ud) + Rosas Pink Mondial (600 ud)",624.0,0.1,62.4,0,0,0.0,686.4,"Transferencia"],["2600096108","2026-03-01","CaixaRenting (Arval Service Lease)","A60303004","🚗 Renting / Vehículo","Servicio de Renting — PEUGEOT 3008 Hybrid MAT.6934LVL — Marzo 2026",387.18,0.21,81.31,0,0,0.0,468.49,"Domiciliación"],["260301183033703","2026-03-01","Ayvens Spain Mobility Solutions","A79235334","🚗 Renting / Vehículo","Cuota Renting — MERCEDES GLA 4270LVC — Marzo 2026",409.56,0.21,86.01,0,0,0.0,495.57,"Recibo domiciliado"],["A/5.653","2026-03-01","Miras Abogados y Asesores Tributarios S.L.P.","J91584960","⚖️ Asesoría / Gestoría","Cuota Gestión Área Fiscal — Casana House SCP — Mar 2026",105.0,0.21,22.05,0,0,0.0,127.05,"Recibo domiciliado"],["A/5.695","2026-03-01","Miras Abogados y Asesores Tributarios S.L.P.","J91584960","⚖️ Asesoría / Gestoría","Cuota Gestión Fiscal + Laboral (2 emp.) + Estudio Rendimiento Autónomos + Libros Registro Mercantil — Mar 2026",756.12,0.21,158.79,0,0,0.0,914.91,"Recibo domiciliado"],["2026-1427","2026-03-02","Verdes Cristóbal, S.L.U.","","🌸 Flores / Producto","Vanda x25 Blue (75 ud)",83.25,0.1,8.33,0,0,0.0,91.58,"Transferencia"],["CMS4386158","2026-03-04","Mercedes-Benz Financial Services E.F.C., S.A.","A80121490","🚗 Renting / Vehículo","Cuota arrendamiento financiero — Mercedes Sprinter chasis W1N9N0CB0TJ177242 — Marzo 2026",214.22,0.21,44.99,0,0,0.0,259.21,"Recibo domiciliado"],["61079785431","2026-03-04","Repsol Comercializadora Electricidad y Gas","A78099169","💡 Suministros (Luz/Gas)","Luz Costa Ballena — Av. Música 8, Chipiona — 21/01 a 02/03/2026 (76,24 kWh)",43.94,0.21,9.23,0,0,0.0,53.17,"Recibo domiciliado"],["FE20265100533980","2026-03-04","CIDE HCenergía S.A. (CHC)","A15017512","💡 Suministros (Luz/Gas)","Luz nave polígono — Febrero 2026 (815 kWh)",109.19,0.21,22.93,0,0,0.0,132.12,"Recibo domiciliado"],["26/0055","2026-03-09","Multilatex S.L. (Neuocasion)","B91431551","🔧 Reparación / Taller","2 Neumáticos 185/65R15 Laufen Delanteros + Montaje + Válvulas — Mat. 2073HLF",86.77,0.21,18.23,0,0,0.0,105.0,"Tarjeta/Efectivo"],["T 260353","2026-03-15","Frutas Hnos. Millán, S.L.","B21103940","🚚 Transporte / Mensajería","Transporte 3075KPZ/R Madrid-Sevilla x2 (alb. T-261941 fecha 07/03/2026)",180.0,0.21,37.8,0,0,0.0,217.8,"Transferencia 30 días"],["000050","2026-03-18","Garage23amg (Gabriel Ángel Acosta Bonilla)","14324593D","🔧 Reparación / Taller","Rep. Ford Transit 0842KXD — Actualiz. centralita ECU + Rep. catalizador/filtro FAP + Limpieza",375.0,0.21,78.75,0,0,0.0,453.75,"Pagado"],["49945/113","2026-03-25","Flores Caoba, S.L.","B72244221","🌸 Flores / Producto","Paeonias Tallos x10 (1,95€) + Gerberas x50 (0,50€)",44.5,0.1,4.45,0,0,0.0,48.95,"Ingreso bancario"],["2609723","2026-03-27","Getru Logistics B.V.","25056469","🚚 Transporte / Mensajería","Transporte 1 palé flores frescas Vallinoto→Buscaflor (+ supl. gasoil 7%)",72.76,0.0,0.0,0,0,0.0,72.76,"Transferencia (venc. 26/04/2026)"],["18922601P0016583","2026-03-30","Aqualia / Ayto. Chipiona (FCC)","A86258776","💡 Suministros (Luz/Gas)","Agua, alcantarillado y cánones — Av. Música 8, Chipiona — Ene-Mar 2026 (FCC 20,55 € + Ayto 4,34 €)",18.95,0.1,1.6,0,0,0.0,24.89,"Domiciliación"],["CO12600839","2026-03-31","Verdnatura Levante S.L.","B97377015","🌸 Flores / Producto","Flores y plantas varias — marzo 2026 (Base 10%: 12.225,42€ + Base 21%: 59,61€)",12285.03,0,1235.06,0,0,0.0,13520.09,"Transferencia"],["M265412","2026-03-31","Coflores SLU","B29916862","🌸 Flores / Producto","Rosas Mondial/Brighton, Clavel Fancy Antigua/Blanco — mar 2026 (incluye abono -675€)",531.2,0.1,53.12,0,0,0.0,584.32,"Transferencia"],["A 2026004","2026-03-31","Bondai Flowers S.L.","B88075775","📋 Servicios Profesionales","Servicios y gestión — Marzo 2026",3000.0,0.21,630.0,0,0,0.0,3630.0,"Pendiente"],["0003385/A","2026-03-31","Inversiones y Producciones Tiber, S.L.","B72272800","🌸 Flores / Producto","Eucalipto, Estatice, Antirrino, Fresia, Iris Extra, Alium, Esparraguera, Clavel Colombiano, Flor de Cera — Marzo 2026",2857.5,0.1,285.75,0,0,0.0,3143.25,"Domiciliación"],["V-26-03-38184","2026-03-31","Plenergy Grupo, S.L.","B42630690","⛽ Combustible","Gasóleo A — Mat. 0842KXD, 1966KML, 6472LDK — Marzo 2026 (5 albaranes)",383.87,0.21,80.61,0,0,0.0,464.48,"Domiciliación"],["N 2026/002017","2026-03-31","Alas Courier S.L. (TIPSA)","B28252444","🚚 Transporte / Mensajería","Transporte mensajería — 15 envíos (TIPSA 10h, 14h, delegación) + gasoil — Mar 2026",313.64,0.21,65.86,0,0,0.0,379.5,"Transferencia 30 días"],["2600154696","2026-04-01","CaixaRenting (Arval Service Lease)","A60303004","🚗 Renting / Vehículo","Servicio de Renting — PEUGEOT 3008 Hybrid MAT.6934LVL — Abril 2026",387.18,0.21,81.31,0,0,0.0,468.49,"Domiciliación"],["260401183026248","2026-04-01","Ayvens Spain Mobility Solutions","A79235334","🚗 Renting / Vehículo","Cuota Renting — MERCEDES GLA 4270LVC — Abril 2026",409.56,0.21,86.01,0,0,0.0,495.57,"Recibo domiciliado"],["A/5.709","2026-04-01","Miras Abogados y Asesores Tributarios S.L.P.","J91584960","⚖️ Asesoría / Gestoría","Abono Cuota Gestión Área Fiscal — Casana House SCP — Abr 2026",-105.0,0.21,-22.05,0,0,0.0,-127.05,"Recibo domiciliado"],["A/5.837","2026-04-01","Miras Abogados y Asesores Tributarios S.L.P.","J91584960","⚖️ Asesoría / Gestoría","Cuota Gestión Fiscal + Laboral (2 emp.) — Abr 2026 | Abono Libros Registro Mercantil",100.94,0.21,21.2,0,0,0.0,122.14,"Recibo domiciliado"],["CMS4418422","2026-04-04","Mercedes-Benz Financial Services E.F.C., S.A.","A80121490","🚗 Renting / Vehículo","Cuota arrendamiento financiero — Chasis W1N9N0CB0TJ177242 — Abril 2026",214.22,0.21,44.99,0,0,0.0,259.21,"Domiciliación"],["61081582140","2026-04-07","Repsol Comercializadora Electricidad y Gas","B39540760","💡 Suministros (Luz/Gas)","Luz nave Pol. San Nicolás Nave 34 — 16/03 a 31/03/2026 (483 kWh)",81.24,0.1,8.12,0,0,0.0,89.36,"Recibo domiciliado"],["1071F-04/193","2026-04-09","Ceror, S.A.","A41080573","⛽ Combustible","Diesel e+ — E.S. Ntra. Sra. de la Salud (Ceror) — Mat. 1966KML (53,01 L)",92.96,0.1,9.3,0,0,0.0,102.26,"Pagado"],["A 2026005","2026-04-16","Bondai Flowers S.L.","B88075775","🌸 Flores / Producto","Flores naturales (100 ud × 20,00 €)",2000.0,0.1,200.0,0,0,0.0,2200.0,"Pendiente"],["1083/26","2026-04-19","Hnos. Palacios Flor Cortada S.L.","B72342900","🌸 Flores / Producto","Lentisco x Jaze (2p) + Eucalipto Cinerea x5 tallos (60p)",182.0,0.1,18.2,0,0,0.0,200.2,"Transferencia BBVA"],["096692/5/26/000841","2026-04-19","Repsol Soluciones Energéticas S.A.","A80298839","⛽ Combustible","Diesel e+ — E.S. La Negrilla — Mat. 1966KML (50,97 L)",84.56,0.1,8.46,0,0,0.0,93.02,"Pagado en caja"],["034486/5/26/000354","2026-04-20","Repsol Soluciones Energéticas S.A.","A80298839","⛽ Combustible","Diesel e+ — E.S. Repsol Chipiona — Mat. 1966KML (23,69 L)",37.58,0.1,3.76,0,0,0.0,41.34,"Pagado en caja"],["096692/5/26/000855","2026-04-20","Repsol Soluciones Energéticas S.A.","A80298839","⛽ Combustible","Diesel e+ — E.S. La Negrilla — Mat. 1966KML (70,31 L)",116.66,0.1,11.67,0,0,0.0,128.32,"Pagado en caja"],["1125/26","2026-04-21","Hnos. Palacios Flor Cortada S.L.","B72342900","🌸 Flores / Producto","Lentisco x Jaze (2p) + Caja de Esponja (1 ud)",59.0,0.1,5.0,0.21,1.89,0.0,65.89,"Transferencia BBVA"],["1259F-04/225","2026-04-25","Ceror, S.A.","A41080573","⛽ Combustible","Diesel e+ — E.S. Ntra. Sra. de la Salud (Ceror) — Tique (27,03 L)",44.21,0.1,4.42,0,0,0.0,48.63,"Pagado en caja"],["1244/26","2026-04-28","Hnos. Palacios Flor Cortada S.L.","B72342900","🌸 Flores / Producto","Lentisco x Jaze (3p)",75.0,0.1,7.5,0,0,0.0,82.5,"Transferencia BBVA"],["A 2026007","2026-04-28","Bondai Flowers S.L.","B88075775","🌸 Flores / Producto","Flores naturales",1650.0,0.1,165.0,0,0,0.0,1815.0,"Pendiente"],["M267454","2026-04-30","Coflores SLU","B09791120","🌸 Flores / Producto","Clavel Fancy Antigua/Blanco (1.860 ud) + Clavel Select Blanco (1.200 ud)",843.6,0.1,84.36,0,0,0.0,927.96,"Transferencia"],["N 2026/002163","2026-04-30","Alas Courier S.L. (TIPSA)","B78942877","🚚 Transporte / Mensajería","Mensajería TIPSA 14h (15 envíos) + tasa carburante — Abr 2026",227.08,0.21,47.69,0,0,0.0,274.77,"Transferencia 30 días"],["A12616870","2026-04-30","Verdnatura Levante S.L.","B97367486","🌸 Flores / Producto","Flores y plantas varias (43 albaranes) — Abril 2026",8388.57,0.1,827.77,0.21,23.29,0.0,9239.63,"La Caixa"],["096536/5/26/002706","2026-05-01","Repsol Soluciones Energéticas S.A.","A80298839","⛽ Combustible","Diesel e+5 (23,66 L) + AdBlue (11,44 L) — Los Bermejales — Mat. 1966KML",53.55,0.1,4.03,0.21,2.77,0.0,60.36,"Pagado en caja"],["A 2026008","2026-05-01","Bondai Flowers S.L.","B88075775","📋 Servicios Profesionales","Servicios y gestión — Abril 2026",2500.0,0.21,525.0,0,0,0.0,3025.0,"Pendiente"],["034486/5/26/000420","2026-05-04","Repsol Soluciones Energéticas S.A.","A80298839","⛽ Combustible","Diesel e+ — E.S. Repsol Chipiona — Mat. 1966KML (52,99 L)",84.55,0.1,8.46,0,0,0.0,93.0,"Pagado en caja"],["1336/26","2026-05-05","Hnos. Palacios Flor Cortada S.L.","B72342900","🌸 Flores / Producto","Flores cortadas (s/ listado situación 29/05)",50.0,0.1,5.0,0,0,0.0,55.0,"Transferencia BBVA"],["1374/26","2026-05-07","Hnos. Palacios Flor Cortada S.L.","B72342900","🌸 Flores / Producto","Flores cortadas (s/ listado situación 29/05)",75.6,0.1,7.56,0,0,0.0,83.16,"Transferencia BBVA"],["1388/26","2026-05-09","Hnos. Palacios Flor Cortada S.L.","B72342900","🌸 Flores / Producto","Flores cortadas (s/ listado situación 29/05)",125.0,0.1,12.5,0,0,0.0,137.5,"Transferencia BBVA"],["1475/26","2026-05-14","Hnos. Palacios Flor Cortada S.L.","B72342900","🌸 Flores / Producto","Flores cortadas (s/ listado situación 29/05)",50.0,0.1,5.0,0,0,0.0,55.0,"Transferencia BBVA"],["1493/26","2026-05-17","Hnos. Palacios Flor Cortada S.L.","B72342900","🌸 Flores / Producto","Flores cortadas (s/ listado situación 29/05)",100.0,0.1,10.0,0,0,0.0,110.0,"Transferencia BBVA"],["1578/26","2026-05-23","Hnos. Palacios Flor Cortada S.L.","B72342900","🌸 Flores / Producto","Flores cortadas (s/ listado situación 29/05)",141.0,0.1,14.1,0,0,0.0,155.1,"Transferencia BBVA"],["A 2026009","2026-05-25","Bondai Flowers S.L.","B88075775","📋 Servicios Profesionales","Servicios y gestión — Mayo 2026",3000.0,0.21,630.0,0,0,0.0,3630.0,"Pendiente"],["1648/26","2026-05-28","Hnos. Palacios Flor Cortada S.L.","B72342900","🌸 Flores / Producto","Flores cortadas (s/ listado situación 29/05)",50.0,0.1,5.0,0,0,0.0,55.0,"Transferencia BBVA"],["A 2026010","2026-06-08","Bondai Flowers S.L.","B88075775","🌸 Flores / Producto","Flores naturales",1150.0,0.1,115.0,0,0,0.0,1265.0,"Pendiente"],["1770/26","2026-06-06","Hnos. Palacios Flor Cortada S.L.","B72342900","🌸 Flores / Producto","Lentisco x Jaze (2p) + Helecho Flordecor Extra Larger (40p) + Larger (2p)",202.6,0.1,20.26,0,0,0.0,222.86,"Transferencia BBVA"],["1942/26","2026-06-20","Hnos. Palacios Flor Cortada S.L.","B72342900","🌸 Flores / Producto","Helecho Flordecor Extra (20p) + Eucalipto Cinerea (20p) + Lentisco (2p)",173.0,0.1,17.3,0,0,0.0,190.3,"Transferencia BBVA"],["1999/26","2026-06-24","Hnos. Palacios Flor Cortada S.L.","B72342900","🌸 Flores / Producto","Lentisco x Jaze (2p) + Helecho Flordecor Extra Larger (20p)",123.0,0.1,12.3,0,0,0.0,135.3,"Transferencia BBVA"],["RS2026/591515","2026-06-26","Repsol Comercializadora Electricidad y Gas","B39540760","⛽ Combustible","Recarga eléctrica pública rápida — 70,074 kWh (0,40 €/kWh)",28.03,0.21,5.89,0,0,0.0,33.92,"Recibo domiciliado"],["2032/26","2026-06-28","Hnos. Palacios Flor Cortada S.L.","B72342900","🌸 Flores / Producto","Lentisco x Jaze (2p) + Eucalipto Cinerea x5 (20p)",100.0,0.1,10.0,0,0,0.0,110.0,"Transferencia BBVA"],["RS2026/605112","2026-06-29","Repsol Comercializadora Electricidad y Gas","B39540760","⛽ Combustible","Recarga eléctrica pública rápida — 70,422 kWh (0,40 €/kWh)",28.17,0.21,5.92,0,0,0.0,34.09,"Recibo domiciliado"],["265000183205","2026-06-30","Petroprix Energía S.L.","B23709892","⛽ Combustible","Diesel — E.S. Petroprix (16,93 L) — Tarjeta",20.92,0.1,2.09,0,0,0.0,23.01,"Tarjeta"],["M2612164","2026-06-30","Coflores SLU","B09791120","🌸 Flores / Producto","Clavel Fancy Blanco/Antigua + Rosas Mondial 60 (5 albaranes) — Jun 2026",897.0,0.1,89.7,0,0,0.0,986.7,"Transferencia"],["N 2026/002443","2026-06-30","Alas Courier S.L. (TIPSA)","B78942877","🚚 Transporte / Mensajería","Mensajería TIPSA 10h + 14h (12) + delegación + tasa carburante — Jun 2026",276.44,0.21,58.05,0,0,0.0,334.49,"Transferencia 30 días"],["A12630205","2026-06-30","Verdnatura Levante S.L.","B97367486","🌸 Flores / Producto","Flores y plantas varias (múltiples albaranes) — Junio 2026",6044.67,0.1,604.47,0,0,0.0,6649.14,"La Caixa"],["0003460/A","2026-06-30","Inversiones y Producciones Tiber, S.L.","B72272800","🌸 Flores / Producto","Eucalipto, Gerberas, Margarita, Estatice, Lilium, Tuya, Palmera — Jun 2026",1784.2,0.1,178.42,0,0,0.0,1962.62,"Domiciliación"],["OT/26/0083","2026-06-30","Cecotrans Sevilla SL","B91331223","🚚 Transporte / Mensajería","Reparto Chipiona (22/06 + 29/06)",429.4,0.21,90.18,0,0,0.0,519.58,"Transferencia"],["A / 6.227","2026-07-02","Miras Abogados y Asesores Tributarios S.L.P.","B55763486","⚖️ Asesoría / Gestoría","Cuota Gestión Área Laboral — Casana House SCP — Jun 2026",30.0,0.21,6.3,0,0,0.0,36.3,"Recibo domiciliado"],["A / 6.280","2026-07-02","Miras Abogados y Asesores Tributarios S.L.P.","B55763486","⚖️ Asesoría / Gestoría","Cuota Gestión Fiscal + Laboral (2 emp.) — Jun 2026",410.0,0.21,86.1,0,0,0.0,496.1,"Recibo domiciliado"],["FACREC / 142","2026-07-02","Miras Abogados y Asesores Tributarios S.L.P.","B55763486","⚖️ Asesoría / Gestoría","Rectificativa 2026/A/6.107 (abono lab. -30€) + IRPF (2) + Borrador/Datos fiscales IRPF (2)",180.7,0.21,37.95,0,0,0.0,218.65,"Recibo domiciliado"],["18922601P0030192","2026-06-25","Aqualia / Ayto. Chipiona (FCC)","A26019992","💡 Suministros (Luz/Gas)","Agua, alcantarillado y cánones — Av. Música 8, Chipiona — Abr-Jun 2026 (FCC 22,12 € + Ayto 4,34 €)",20.46,0.1,1.66,0,0,0.0,26.46,"Domiciliación"],["002/26","2026-01-10","José Manuel Portela Martínez (autónomo)","48811984G","🚚 Transporte / Mensajería","Transporte y entrega de flores",600.0,0.21,126.0,"","",90.0,636.0,"Transferencia"]],"pagos":[{"id":"t_jun26","fecha":"2026-07-21","beneficiario":"VALLINOTO CARGO S.A.","importe":12261.33,"concepto":"PAGO FACTURAS DESDE LA 261384 a la 262354","facturas":[],"asignadas":["V 2607269","V 2607283","V 2607305","V 2607324","V 2607353","V 2607612","V 2607663","V 2607664","V 2607974","V 2607975","V 2607981","V 2608239","V 2608304","V 2608305"],"metodo":"todo lo pendiente de junio 2026"}],"ventas":[["2023-01",96226.48,1211,0.0,0.0,0.0,""],["2023-02",182365.97,1367,0.0,0.0,0.0,""],["2023-03",131121.45,1592,0.0,0.0,0.0,""],["2023-04",99238.13,1273,0.0,0.0,0.0,""],["2023-05",135399.34,1875,0.0,0.0,0.0,""],["2023-06",85644.58,1464,0.0,0.0,0.0,""],["2023-07",74032.05,1226,0.0,0.0,0.0,""],["2023-08",64648.36,1023,0.0,0.0,0.0,""],["2023-09",92254.21,1607,0.0,0.0,0.0,""],["2023-10",256689.37,2191,0.0,0.0,0.0,""],["2023-11",70932.33,1176,0.0,0.0,0.0,""],["2023-12",69445.76,1168,0.0,0.0,0.0,""],["2024-01",67597.91,1155,0.0,0.0,0.0,""],["2024-02",187367.93,1414,0.0,0.0,0.0,""],["2024-03",127475.16,1496,0.0,0.0,0.0,""],["2024-04",104220.49,1462,0.0,0.0,0.0,""],["2024-05",94896.37,1516,0.0,0.0,0.0,""],["2024-06",73836.37,1379,0.0,0.0,0.0,""],["2024-07",66683.52,1212,0.0,0.0,0.0,""],["2024-08",55646.75,976,0.0,0.0,0.0,""],["2024-09",110095.53,1649,0.0,0.0,0.0,""],["2024-10",219826.38,2057,0.0,0.0,0.0,""],["2024-11",83796.53,1391,0.0,0.0,0.0,""],["2024-12",84628.37,1327,0.0,0.0,0.0,""],["2025-01",59470.25,1000,0.0,0.0,0.0,""],["2025-02",180150.16,1569,0.0,0.0,0.0,""],["2025-03",114946.22,1611,0.0,0.0,0.0,""],["2025-04",151808.19,1707,0.0,0.0,0.0,""],["2025-05",104241.72,1585,0.0,0.0,0.0,""],["2025-06",99180.46,1513,0.0,0.0,0.0,""],["2025-07",75114.12,1231,0.0,0.0,0.0,""],["2025-08",71035.75,1160,0.0,0.0,0.0,""],["2025-09",131262.09,2047,0.0,0.0,0.0,""],["2025-10",271772.78,2498,0.0,0.0,0.0,""],["2025-11",93964.19,1614,0.0,0.0,0.0,""],["2025-12",103947.72,2101,0.0,0.0,0.0,""],["2026-01",84828.96,1483,0.0,0.0,0.0,""],["2026-02",207952.22,1954,0.0,0.0,0.0,""],["2026-03",191382.3,2350,0.0,0.0,0.0,""],["2026-04",114573.0,319,126462.59,59964.21,66498.38,"2026-05-12"],["2026-05",115712.27,356,127817.65,78712.48,49105.17,"2026-06-18"],["2026-06",108692.4,326,120012.93,64371.88,55641.05,"2026-07-16"]],"anios":{"2023":[1357998.03,17173],"2024":[1276071.31,17034],"2025":[1456893.65,19636],"2026":[823141.15,6788]},"familias":{"Clavel":{"2023":1289338.0,"2024":1166580.0,"2025":1479848.5,"2026":483243.0},"Rosa":{"2023":49871.8,"2024":43746.0,"2025":47753.15,"2026":24463.5},"Alstroemeria":{"2023":25480.0,"2024":27524.25,"2025":39287.0,"2026":12055.0},"Hortensia":{"2023":11183.0,"2024":6835.0,"2025":5585.0,"2026":2035.0},"Eucalipto":{"2023":3637.0,"2024":5061.0,"2025":7022.5,"2026":3093.0},"Mezcla / Garden":{"2023":3722.0,"2024":2768.0,"2025":1913.0,"2026":527.0},"Nardos":{"2023":1798.0,"2024":1755.0,"2025":2062.0,"2026":0},"Paniculata":{"2023":437.0,"2024":1156.0,"2025":940.5,"2026":979.0},"Helecho":{"2023":363.0,"2024":1056.0,"2025":983.0,"2026":0},"Lisianthus":{"2023":10.0,"2024":695.0,"2025":618.0,"2026":0}},"fin":{"periodo":"2025","cierre":"31/12/2025","ventasNetas":1428685.15,"cifraNegocio":1450890.6,"totalExplotacion":1470920.7,"cogs":-1204289.75,"margenBruto":246600.85,"margenBrutoPct":17.0,"personal":-105040.77,"opex":-67084.35,"ebitdaOficial":94505.83,"ebitdaReal":36677.98,"beneficioNeto":95463.28,"margenNetoPct":6.58,"clientesNeto":253742.13,"tesoreria":-372073.79,"proveedores":38350.29,"pasivoCorriente":210022.16,"patrimonio":419412.77,"activoTotal":634438.3,"ratios":{"liquidez":0.125,"fondo_maniobra":-183832.8,"endeudamiento_pct":33.9,"autonomia_pct":66.1,"roe_pct":22.76,"roa_pct":15.05,"rotacion_activos":2.2868899938733205,"periodo_medio_cobro_dias":63.833811763616076,"periodo_medio_pago_dias":11.623328895724638},"cien":{"flores_y_flete":81.5,"trabajos_externos":2.5,"personal_oficial":3.3,"gerencia_externa":4.0,"profesionales_resto":0.3,"reparaciones":1.3,"transporte_terrestre":1.3,"otros_gastos":1.5,"amortizacion":1.0,"enajenaciones":1.1,"beneficio_neto":6.6},"cobros":{"pendiente":187702.16,"facturas":309,"clientes":75,"aging":{"corriente_0_30":120175.78999999989,"vencido_31_60":47854.59000000001,"vencido_61_90":17328.440000000002,"vencido_91_180":2097.3300000000004,"vencido_180_plus":246.01},"diasMedio":24.5,"saldoMedio":2502.7}}}</script>
+<script>
+"use strict";
+
+/* ===================== Catálogos ===================== */
+const CATEGORIAS = [
+  {nom:"🌸 Flores / Producto",        color:"FFEAD9F7"},
+  {nom:"⛽ Combustible",              color:"FFFEF9E7"},
+  {nom:"🚗 Renting / Vehículo",       color:"FFD6EAF8"},
+  {nom:"🚚 Transporte / Mensajería",  color:"FFFFF3CD"},
+  {nom:"⚖️ Asesoría / Gestoría",      color:"FFFDEDEC"},
+  {nom:"💡 Suministros (Luz/Gas)",    color:"FFEBF5FB"},
+  {nom:"📋 Servicios Profesionales",  color:"FFE8F8F5"},
+  {nom:"🔧 Reparación / Taller",      color:"FFEFF7FF"},
+  {nom:"🔧 Mantenimiento / ERP",      color:"FFEFF7FF"},
+  {nom:"🔩 Material / Suministros",   color:"FFF5F5F5"},
+  {nom:"🏠 Seguros / Inmobiliario",   color:"FFFCE4EC"},
+  {nom:"⚠️ Multas / Sanciones",       color:"FFFFDDC1"}
+];
+const COLOR_CAT = {}; CATEGORIAS.forEach(c => COLOR_CAT[c.nom] = c.color);
+/* Paleta saturada para las gráficas: los rellenos de celda son demasiado claros para barras */
+const TINTA_CAT = {
+  "🌸 Flores / Producto":"#7E57C2", "⛽ Combustible":"#C9A227", "🚗 Renting / Vehículo":"#2E75B6",
+  "🚚 Transporte / Mensajería":"#E8833A", "⚖️ Asesoría / Gestoría":"#C0392B", "💡 Suministros (Luz/Gas)":"#5DADE2",
+  "📋 Servicios Profesionales":"#17A589", "🔧 Reparación / Taller":"#5B7C99", "🔧 Mantenimiento / ERP":"#34495E",
+  "🔩 Material / Suministros":"#95A5A6", "🏠 Seguros / Inmobiliario":"#D6608F", "⚠️ Multas / Sanciones":"#6E2C00"
+};
+const TINTA_VALL = {
+  plastico:"#7E57C2", ivaAduana:"#2E75B6", comisionOficial:"#17A589", entregaImport:"#C9A227",
+  thc:"#E8833A", tasasFito:"#4CAF50", paletizacion:"#5B7C99", handlingDoc:"#D6608F",
+  manipPerec:"#C0392B", tasaMantServicio:"#95A5A6", otrosConceptos:"#34495E"
+};
+const PAGOS = ["Recibo domiciliado","Transferencia","Transferencia BBVA","Transferencia 30 días","Domiciliación",
+  "Domiciliación bancaria","Domiciliación IBAN","Domiciliación anual","La Caixa","La Caixa (30 días)",
+  "Pagado","Pagado en caja","Pendiente","Tarjeta","Tarjeta crédito/débito","Ingreso bancario","Abono","Factura"];
+
+/* Columnas del libro Vallinoto, en el orden exacto del original */
+const VCOLS = [
+  {k:"numero",           t:"Nº Factura",             w:18,   f:"t", a:"center"},
+  {k:"fechaFactura",     t:"Fecha Factura",          w:13,   f:"d", a:"center"},
+  {k:"fechaLlegada",     t:"Fecha Llegada",          w:13,   f:"d", a:"center"},
+  {k:"expediente",       t:"Expediente",             w:13,   f:"t", a:"center"},
+  {k:"sReferencia",      t:"S/Referencia",           w:22.7, f:"t", a:"center"},
+  {k:"nDeclaracion",     t:"Nº Declaración",         w:26,   f:"t", a:"center"},
+  {k:"manifiesto",       t:"Manifiesto",             w:18,   f:"t", a:"center"},
+  {k:"proveedor",        t:"Proveedor",              w:22,   f:"t", a:"center"},
+  {k:"transporte",       t:"Transporte",             w:14,   f:"t", a:"center"},
+  {k:"bultos",           t:"Bultos",                 w:7,    f:"n", a:"right"},
+  {k:"pesoBruto",        t:"Peso Bruto\n(kg)",       w:11,   f:"n", a:"right"},
+  {k:"pesoNeto",         t:"Peso Neto\n(kg)",        w:10,   f:"n", a:"right"},
+  {k:"plastico",         t:"Plástico (€)",           w:11,   f:"e", a:"right", coste:true},
+  {k:"ivaAduana",        t:"IVA Aduana (€)",         w:13,   f:"e", a:"right", coste:true},
+  {k:"comisionOficial",  t:"Comisión\nOficial (€)",  w:11,   f:"e", a:"right", coste:true},
+  {k:"entregaImport",    t:"Entrega\nImport. (€)",   w:10,   f:"e", a:"right", coste:true},
+  {k:"thc",              t:"THC (€)",                w:11,   f:"e", a:"right", coste:true},
+  {k:"tasasFito",        t:"Tasas Fito (€)",         w:13,   f:"e", a:"right", coste:true},
+  {k:"paletizacion",     t:"Paletización (€)",       w:12,   f:"e", a:"right", coste:true},
+  {k:"handlingDoc",      t:"Handling\nDoc. (€)",     w:11,   f:"e", a:"right", coste:true},
+  {k:"manipPerec",       t:"Manip.\nPerec. (€)",     w:12,   f:"e", a:"right", coste:true},
+  {k:"tasaMantServicio", t:"Tasa Mant.\nServicio (€)",w:13,  f:"e", a:"right", coste:true},
+  {k:"otrosConceptos",   t:"Otros\nConceptos (€)",   w:14,   f:"e", a:"right", coste:true},
+  {k:"importeBase",      t:"Importe\nBase (€)",      w:13,   f:"e", a:"right"},
+  {k:"baseExenta",       t:"Base\nExenta (€)",       w:12,   f:"e", a:"right", calc:true},
+  {k:"baseIva",          t:"Base\nIVA (€)",          w:11,   f:"e", a:"right", calc:true},
+  {k:"iva21",            t:"IVA 21% (€)",            w:10,   f:"e", a:"right"},
+  {k:"total",            t:"TOTAL\nFACTURA (€)",     w:14,   f:"e", a:"right"},
+  {k:"pagado",           t:"PAGADO",                 w:12,   f:"t", a:"center"}
+];
+const COSTES = VCOLS.filter(c => c.coste).map(c => c.k);
+
+const PCOLS = [
+  {k:"numero",     t:"Nº Factura",     w:16, f:"t", a:"center", clave:true},
+  {k:"fecha",      t:"Fecha",          w:12, f:"d", a:"center", clave:true},
+  {k:"proveedor",  t:"Proveedor",      w:26, f:"t", a:"left"},
+  {k:"cif",        t:"CIF Proveedor",  w:14, f:"t", a:"left"},
+  {k:"categoria",  t:"Categoría",      w:22, f:"t", a:"center"},
+  {k:"concepto",   t:"Concepto",       w:38, f:"t", a:"left"},
+  {k:"base",       t:"Base Imponible", w:14, f:"e", a:"right"},
+  {k:"iva1pct",    t:"% IVA",          w:9,  f:"p", a:"right"},
+  {k:"iva1imp",    t:"Importe IVA",    w:13, f:"e", a:"right"},
+  {k:"iva2pct",    t:"% IVA 2",        w:9,  f:"p", a:"right"},
+  {k:"iva2imp",    t:"Importe IVA 2",  w:13, f:"e", a:"right"},
+  {k:"irpf",       t:"IRPF (−)",       w:12, f:"e", a:"right"},
+  {k:"total",      t:"TOTAL FACTURA",  w:16, f:"e", a:"right", total:true},
+  {k:"formaPago",  t:"Forma de Pago",  w:20, f:"t", a:"center"}
+];
+
+const MESES = ["ENERO","FEBRERO","MARZO","ABRIL","MAYO","JUNIO","JULIO","AGOSTO","SEPTIEMBRE","OCTUBRE","NOVIEMBRE","DICIEMBRE"];
+const NAVY="FF1F4E79", NAVY2="FF1F3864", AZUL="FF2E75B6", AZULCLARO="FFD6E4F0", AZULPAL="FFDEEAF1",
+      AZULSUB="FFBDD7EE", VERDECLARO="FFD5F5E3", BORDE_COL="FFBFBFBF", EUR='#,##0.00" €"';
+
+const S = {prov:[], vall:[], pagos:[], ventas:[], familias:{}, fin:null};
+let TAB = "prov";
+
+/* ===================== Utilidades ===================== */
+const $ = s => document.querySelector(s);
+const num = v => { const n = parseFloat(String(v==null?"":v).replace(/\s/g,"").replace(/\.(?=\d{3}\b)/g,"").replace(",",".")); return isFinite(n)?n:0; };
+const fmt = (n,d) => (isFinite(n)?n:0).toLocaleString("es-ES",{minimumFractionDigits:d==null?2:d,maximumFractionDigits:d==null?2:d});
+const esc = s => String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const guarda = (k,v) => { try{ localStorage.setItem(k,v); }catch(e){} };
+const leeLS = k => { try{ return localStorage.getItem(k); }catch(e){ return null; } };
+const mesDe = f => (f||"").slice(0,7) || "0000-00";
+function nombreMes(ym){ const p = ym.split("-"), i = parseInt(p[1],10)-1; return MESES[i] ? MESES[i]+" "+p[0] : "SIN FECHA"; }
+function ddmm(iso){ return iso ? iso.slice(8,10)+"/"+iso.slice(5,7) : ""; }
+
+const TABS = ["prov","vall","vent","rat"];
+const IDTAB = {prov:"Prov", vall:"Vall", vent:"Vent", rat:"Rat"};
+function verTab(t){
+  TAB = t;
+  TABS.forEach(x => {
+    $("#tab"+IDTAB[x]).setAttribute("aria-selected", x===t);
+    $("#panel"+IDTAB[x]).classList.toggle("oculto", x!==t);
+  });
+}
+
+/* ===================== Clave ===================== */
+$("#apiKey").value = leeLS("bf_key") || "";
+$("#modelo").value = leeLS("bf_modelo") || "claude-sonnet-4-6";
+$("#apiKey").addEventListener("input", e => { guarda("bf_key", e.target.value.trim()); estadoClave(); });
+$("#modelo").addEventListener("change", e => guarda("bf_modelo", e.target.value));
+$("#btnOlvidar").onclick = () => { $("#apiKey").value = ""; guarda("bf_key",""); estadoClave(); };
+function hayClave(){ return $("#apiKey").value.trim().length > 10; }
+function estadoClave(txt, ok){
+  const c = hayClave();
+  $("#punto").className = "punto" + ((ok==null ? c : ok) ? " on" : "");
+  $("#estadoTxt").textContent = txt || (c ? "Clave lista" : "Sin clave");
+  $("#soltarTxt").textContent = c
+    ? "Suelta aquí facturas en PDF o foto, o un Excel de esta página"
+    : "Suelta un Excel de esta página · para leer PDF o fotos hace falta la clave";
+}
+$("#btnProbar").onclick = async () => {
+  if(!hayClave()) return estadoClave("Falta la clave", false);
+  estadoClave("Probando…", false);
+  try{ await llamar([{type:"text",text:"Responde solo: ok"}], 16); estadoClave("Conexión correcta", true); }
+  catch(err){ estadoClave("Error: "+err.message, false); }
+};
+async function llamar(contenido, maxTokens){
+  const r = await fetch("https://api.anthropic.com/v1/messages",{
+    method:"POST",
+    headers:{"content-type":"application/json","x-api-key":$("#apiKey").value.trim(),
+             "anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
+    body:JSON.stringify({model:$("#modelo").value, max_tokens:maxTokens||3000, messages:[{role:"user",content:contenido}]})
+  });
+  if(!r.ok){
+    let d=""; try{ d = (await r.json()).error.message || ""; }catch(e){}
+    throw new Error(r.status===401 ? "clave rechazada" : (d || "HTTP "+r.status));
+  }
+  const j = await r.json();
+  return (j.content||[]).filter(b => b.type==="text").map(b => b.text).join("");
+}
+
+/* ===================== Prompt ===================== */
+const PROMPT =
+'Eres el registro de compras de Rosas de Buscaflor Lamejor S.L. (CIF B91821579), mayorista de flor cortada en Dos Hermanas, Sevilla.\n'+
+'Lee esta factura recibida y devuelve SOLO un objeto JSON, sin explicaciones ni marcas de código.\n\n'+
+'Primero decide el tipo:\n'+
+'- "ventas" si es un LISTADO de facturas emitidas por Rosas de Buscaflor a sus clientes (suele titularse "Facturas de ventas" y acaba con una fila "Total informe").\n'+
+'- "transferencia" si es un justificante de pago, orden de transferencia o extracto bancario, no una factura.\n'+
+'Si es ventas:\n'+
+'{"documentos":[{"tipo":"ventas","mes":"AAAA-MM","fechaInforme":"AAAA-MM-DD","documentos":0,"baseImponible":0,"total":0,"pagado":0,"pendiente":0}]}\n'+
+'- fechaInforme: la fecha de emisión del listado que aparece al pie, no la del periodo.\n'+
+'- mes: el del periodo del informe. documentos: el número de registros del total.\n'+
+'- baseImponible: SUMA de Base 1 + Base 2 + Base 3 de la fila "Total informe". No incluyas cuotas de IVA ni recargo.\n'+
+'- total, pagado y pendiente: los de esa misma fila de totales.\n'+
+'- fechaInforme: la fecha de impresión que sale en el pie de página, no la del periodo.\n'+
+'- No leas las facturas una a una: coge solo la cabecera y la fila de totales.\n\n'+
+'- "vallinoto" si la emite VALLINOTO CARGO (agencia de aduanas y transporte de Madrid).\n'+
+'- "proveedor" en cualquier otro caso.\n\n'+
+'Si es transferencia:\n'+
+'{"documentos":[{"tipo":"transferencia","fecha":"AAAA-MM-DD","beneficiario":"","importe":0,"concepto":"","facturas":[]}]}\n'+
+'- fecha: fecha valor u orden del pago. importe: importe total enviado, en positivo.\n'+
+'- facturas: lista con todos los números de factura que se citen en el concepto o en el detalle, tal cual aparecen. Si no cita ninguno, deja la lista vacía.\n\n'+
+'Si es vallinoto:\n'+
+'{"documentos":[{"tipo":"vallinoto","numero":"","fechaFactura":"AAAA-MM-DD","fechaLlegada":"AAAA-MM-DD","expediente":"","sReferencia":"","nDeclaracion":"","manifiesto":"","proveedor":"","transporte":"","bultos":0,"pesoBruto":0,"pesoNeto":0,"plastico":0,"ivaAduana":0,"comisionOficial":0,"entregaImport":0,"thc":0,"tasasFito":0,"paletizacion":0,"handlingDoc":0,"manipPerec":0,"tasaMantServicio":0,"otrosConceptos":0,"importeBase":0,"iva21":0,"total":0}]}\n'+
+'- numero tal cual, por ejemplo "V 2604344". Las notas de abono empiezan por C y llevan importes negativos: consérvalos negativos.\n'+
+'- expediente: el que empieza por IFC (despacho) o ADM (transporte y pallets).\n'+
+'- sReferencia: la referencia del cliente, tipo "TRANSPORTES MARZO" o "PALLETS MARZO", solo en expedientes ADM.\n'+
+'- nDeclaracion: el DUA completo. manifiesto: el número de manifiesto o guía aérea.\n'+
+'- proveedor: el proveedor de la mercancía despachada (SAFTEC SA, Ecuador Cargo, Logike Cargo...).\n'+
+'- transporte: el medio, por ejemplo "AVION IB138".\n'+
+'- Cada concepto va a su casilla. Lo que no encaje en ninguna, súmalo en otrosConceptos. Pon 0 si no aparece.\n'+
+'- importeBase es la base total impresa antes de IVA. No calcules base exenta ni base IVA.\n\n'+
+'Si es proveedor:\n'+
+'{"documentos":[{"tipo":"proveedor","numero":"","fecha":"AAAA-MM-DD","proveedor":"","cif":"","categoria":"","concepto":"","base":0,"iva1pct":0,"iva1imp":0,"iva2pct":0,"iva2imp":0,"irpf":0,"total":0,"formaPago":""}]}\n'+
+'- proveedor: razón social completa. cif: CIF o NIF del emisor, no el nuestro.\n'+
+'- categoria: elige exactamente una de esta lista, copiando el texto con su emoji:\n'+
+CATEGORIAS.map(c => "  "+c.nom).join("\n")+"\n"+
+'- concepto: resumen corto y útil de lo facturado, con cantidades si las hay. Ejemplo: "Clavel Blanco 70 (600 ud) + Cubos (2 ud)".\n'+
+'- iva1pct en tanto por uno: 0.21, 0.10, 0.04 o 0. Si la factura tiene dos tipos de IVA distintos usa también iva2pct e iva2imp; si no, déjalos a 0.\n'+
+'- irpf: la retención de IRPF que RESTA (autónomos: transportistas, asesores, profesionales). Ponla en POSITIVO, aunque en la factura aparezca con signo menos. 0 si no hay. Con IRPF, total = base + IVA − irpf.\n'+
+'- formaPago: lo que diga la factura (recibo domiciliado, transferencia, tarjeta, pagado en caja...). Si no lo dice, "Pendiente".\n'+
+'- Las facturas rectificativas y los abonos llevan importes negativos: consérvalos negativos.\n'+
+'- Un mismo PDF puede contener DOS facturas de dos emisores distintos (típico en agua: la concesionaria y el ayuntamiento con su canon). En ese caso devuelve DOS objetos proveedor, cada uno con su CIF, su base y su total. No los sumes en uno solo o la base y el total no cuadrarán.\n\n'+
+'Números con punto decimal y sin separador de miles. Si el PDF trae varias facturas, devuélvelas todas.';
+
+/* ===================== Lectura ===================== */
+const soltar = $("#soltar"), inputF = $("#ficheros");
+soltar.onclick = () => inputF.click();
+soltar.onkeydown = e => { if(e.key==="Enter"||e.key===" "){ e.preventDefault(); inputF.click(); } };
+["dragenter","dragover"].forEach(ev => soltar.addEventListener(ev, e => { e.preventDefault(); soltar.classList.add("activa"); }));
+["dragleave","drop"].forEach(ev => soltar.addEventListener(ev, e => { e.preventDefault(); soltar.classList.remove("activa"); }));
+soltar.addEventListener("drop", e => procesar([].slice.call(e.dataTransfer.files)));
+inputF.addEventListener("change", e => { procesar([].slice.call(e.target.files)); e.target.value = ""; });
+
+async function procesar(files){
+  const libros = files.filter(f => /\.xlsx$/i.test(f.name));
+  for(const f of libros){
+    const fila = document.createElement("div");
+    fila.className = "arch";
+    fila.innerHTML = '<span class="nom">'+esc(f.name)+'</span><span class="est">abriendo…</span>';
+    $("#cola").insertBefore(fila, $("#cola").firstChild);
+    const est = fila.querySelector(".est");
+    try{ est.textContent = await leerLibro(f); est.className = "est bien"; pintar(); }
+    catch(err){ est.textContent = "no se pudo abrir · "+err.message; est.className = "est mal"; }
+  }
+  const TIPOIMG = {png:"image/png", jpg:"image/jpeg", jpeg:"image/jpeg", webp:"image/webp", gif:"image/gif"};
+  const pdfs = files.filter(f => /\.(pdf|png|jpe?g|webp|gif)$/i.test(f.name));
+  if(pdfs.length && !hayClave()){
+    const fila = document.createElement("div");
+    fila.className = "arch";
+    fila.innerHTML = '<span class="nom">'+pdfs.length+' PDF</span><span class="est mal">hace falta la clave de API para leer PDF</span>';
+    $("#cola").insertBefore(fila, $("#cola").firstChild);
+    return;
+  }
+  for(const f of pdfs){
+    const fila = document.createElement("div");
+    fila.className = "arch";
+    fila.innerHTML = '<span class="nom">'+esc(f.name)+'</span><span class="est">leyendo…</span>';
+    $("#cola").insertBefore(fila, $("#cola").firstChild);
+    const est = fila.querySelector(".est");
+    try{
+      if(f.size > 4.5*1024*1024) throw new Error("pesa más de 4,5 MB");
+      const ext = f.name.split(".").pop().toLowerCase();
+      const b64 = await aBase64(f);
+      const doc = TIPOIMG[ext]
+        ? {type:"image",    source:{type:"base64", media_type:TIPOIMG[ext],       data:b64}}
+        : {type:"document", source:{type:"base64", media_type:"application/pdf",  data:b64}};
+      const txt = await llamar([doc, {type:"text", text:PROMPT}], 3000);
+      const j = JSON.parse(txt.replace(/```json|```/g,"").trim());
+      const docs = (j.documentos||[]).filter(d => d && (d.numero || d.total || d.importe));
+      if(!docs.length) throw new Error("no se reconoció ninguna factura");
+      let nv = 0, np = 0;
+      let nt = 0, nz = 0;
+      docs.forEach(d => {
+        if(d.tipo === "transferencia"){
+          const tr = {id:"t"+Date.now()+Math.floor(Math.random()*1000), fecha:String(d.fecha||"").slice(0,10),
+                      beneficiario:String(d.beneficiario||"").trim(), importe:Math.abs(num(d.importe)),
+                      concepto:String(d.concepto||"").trim(),
+                      facturas:(d.facturas||[]).map(x => String(x).trim()), asignadas:[], metodo:""};
+          conciliar(tr); aplicarPago(tr); S.pagos.push(tr); nt++;
+        }
+        else if(d.tipo === "ventas"){
+          const mes = String(d.mes||"").slice(0,7);
+          if(mes){
+            const o = {mes:mes, importe:num(d.baseImponible), lineas:num(d.documentos),
+                       total:num(d.total), pagado:num(d.pagado), pendiente:num(d.pendiente),
+                       informe:String(d.fechaInforme||"").slice(0,10), origen:f.name};
+            const k = S.ventas.map(x => x.mes).indexOf(mes);
+            if(k >= 0) S.ventas[k] = o; else S.ventas.push(o);
+            nz++;
+          }
+        }
+        else if(d.tipo === "vallinoto"){ S.vall.push(normVall(d, f.name)); nv++; }
+        else { S.prov.push(normProv(d, f.name)); np++; }
+      });
+      est.textContent = (nv? nv+" Vallinoto ":"") + (np? np+" proveedor ":"")
+                      + (nt? nt+" transferencia ":"") + (nz? nz+" mes de ventas":"");
+      if(nt) verTab("vall"); else if(nz) verTab("vent");
+      est.className = "est bien";
+      pintar();
+    }catch(err){
+      est.textContent = "no se pudo leer · "+err.message;
+      est.className = "est mal";
+    }
+  }
+}
+function aBase64(f){
+  return new Promise((res,rej) => {
+    const r = new FileReader();
+    r.onload = () => res(String(r.result).split(",")[1]);
+    r.onerror = () => rej(new Error("no se pudo abrir"));
+    r.readAsDataURL(f);
+  });
+}
+function normVall(d, origen){
+  const o = {origen:origen, pagado:""};
+  VCOLS.forEach(c => {
+    if(c.calc) return;
+    o[c.k] = (c.f==="e" || c.f==="n") ? num(d[c.k]) : String(d[c.k]==null?"":d[c.k]).trim();
+  });
+  if(o.fechaFactura) o.fechaFactura = o.fechaFactura.slice(0,10);
+  if(o.fechaLlegada) o.fechaLlegada = o.fechaLlegada.slice(0,10);
+  return o;
+}
+function normProv(d, origen){
+  const cat = String(d.categoria||"").trim();
+  const conocida = CATEGORIAS.filter(c => c.nom === cat).length ? cat
+    : (CATEGORIAS.filter(c => c.nom.indexOf(cat.replace(/[^\wÁÉÍÓÚÑáéíóúñ /]/g,"").trim()) >= 0)[0] || {}).nom || "🔩 Material / Suministros";
+  return {
+    numero:String(d.numero||"").trim(), fecha:String(d.fecha||"").slice(0,10),
+    proveedor:String(d.proveedor||"").trim(), cif:String(d.cif||"").trim().toUpperCase(),
+    categoria:conocida, concepto:String(d.concepto||"").trim(),
+    base:num(d.base), iva1pct:num(d.iva1pct), iva1imp:num(d.iva1imp),
+    iva2pct:num(d.iva2pct), iva2imp:num(d.iva2imp), irpf:Math.abs(num(d.irpf)),
+    total:num(d.total), formaPago:String(d.formaPago||"Pendiente").trim(), origen:origen
+  };
+}
+
+/* ===================== Cálculo ===================== */
+function derV(f){
+  const exenta = num(f.tasasFito) + num(f.plastico) + num(f.ivaAduana);
+  const suma = COSTES.reduce((a,k) => a + num(f[k]), 0);
+  return {exenta:exenta, baseIva:num(f.importeBase) - exenta, suma:suma,
+          descuadre: suma - num(f.importeBase)};
+}
+function derP(f){
+  return {total: num(f.base) + num(f.iva1imp) + num(f.iva2imp) - Math.abs(num(f.irpf))};
+}
+function probV(f,d){
+  const err = [], warn = [];
+  if(!f.numero) err.push("sin número");
+  if(!f.fechaFactura) err.push("sin fecha de factura");
+  if(num(f.importeBase) && Math.abs(d.descuadre) > 0.02) err.push("los conceptos suman "+fmt(d.suma)+" y la base dice "+fmt(num(f.importeBase)));
+  if(num(f.iva21) && Math.abs(d.baseIva*0.21 - num(f.iva21)) > 0.05) warn.push("el IVA no cuadra al 21% sobre la base sujeta");
+  if(num(f.total) && Math.abs(num(f.importeBase) + num(f.iva21) - num(f.total)) > 0.02) warn.push("base + IVA no da el total");
+  return {err:err, warn:warn};
+}
+function probP(f,d){
+  const err = [], warn = [];
+  if(!f.numero) err.push("sin número");
+  if(!f.fecha) err.push("sin fecha");
+  if(!f.cif) err.push("sin CIF del proveedor");
+  if(!f.categoria) err.push("sin categoría");
+  if(num(f.iva1pct) && !num(f.iva2pct) && Math.abs(num(f.base)*num(f.iva1pct) - num(f.iva1imp)) > 0.05){
+    /* el IVA repercutido puede ser menor que base×tipo si parte de la base va a tipo cero
+       (cánones, tasas). Solo avisamos si el IVA declarado es MAYOR de lo que daría el tipo. */
+    if(num(f.iva1imp) - num(f.base)*num(f.iva1pct) > 0.05)
+      warn.push("el IVA declarado supera el "+fmt(num(f.iva1pct)*100,0)+"% de la base");
+  }
+  if(num(f.total) && Math.abs(d.total - num(f.total)) > 0.02){
+    const gap = num(f.total) - d.total;
+    warn.push("base + IVA da "+fmt(d.total)+" y la factura dice "+fmt(num(f.total))+" ("+(gap>0?"+":"")+fmt(gap)+" €); suele ser un canon o suplido no sujeto, o una segunda factura dentro del mismo documento");
+  }
+  return {err:err, warn:warn};
+}
+
+/* ===================== Pintado ===================== */
+function cab(cols, extra){
+  return "<tr>" + cols.map(c => '<th style="min-width:'+Math.round(c.w*7)+'px">'+esc(c.t)+"</th>").join("") + (extra?"<th></th>":"") + "</tr>";
+}
+function celda(tipo, i, c, val, clase){
+  const cl = (c.f==="e"||c.f==="n"||c.f==="p") ? "n" : (c.a==="center" ? "c" : "");
+  const extra = (c.clave?" clave1":"") + (c.total?" total1":"") + (clase?" "+clase:"");
+  if(c.f === "d") return '<td class="c'+extra+'"><input type="date" data-t="'+tipo+'" data-i="'+i+'" data-k="'+c.k+'" value="'+esc(val)+'"></td>';
+  return '<td class="'+cl+extra+'"><input data-t="'+tipo+'" data-i="'+i+'" data-k="'+c.k+'" value="'+esc(val)+'"></td>';
+}
+
+function pintarProv(){
+  $("#hProv").innerHTML = cab(PCOLS, true);
+  const tb = $("#bProv");
+  const lista = S.prov.map((f,i) => ({f:f,i:i}))
+    .sort((a,b) => (a.f.fecha||"").localeCompare(b.f.fecha||"") || (a.f.numero||"").localeCompare(b.f.numero||""));
+  if(!lista.length){
+    tb.innerHTML = '<tr><td colspan="'+(PCOLS.length+1)+'" class="vacio">Sin facturas. Suelta los PDF arriba o añade una a mano.</td></tr>';
+  } else {
+    let h = "", mes = null;
+    lista.forEach(o => {
+      const f = o.f, i = o.i, m = mesDe(f.fecha);
+      if(m !== mes){
+        mes = m;
+        const g = lista.filter(x => mesDe(x.f.fecha)===m);
+        const t = g.reduce((a,x) => a + num(x.f.total), 0);
+        h += '<tr class="banda"><td colspan="'+(PCOLS.length+1)+'">▶ '+nombreMes(m)+' · '+g.length+' factura(s) · '+fmt(t)+' €</td></tr>';
+      }
+      const d = derP(f), mala = probP(f,d).err.length;
+      h += '<tr'+(mala?' class="mala"':'')+'>'
+        + PCOLS.map(c => celda("prov", i, c, f[c.k])).join("")
+        + '<td><button class="quitar" data-q="prov" data-i="'+i+'">×</button></td></tr>';
+    });
+    tb.innerHTML = h;
+  }
+  let base=0, iva=0, tot=0, pend=0, nPend=0;
+  S.prov.forEach(f => {
+    base += num(f.base); iva += num(f.iva1imp)+num(f.iva2imp); tot += num(f.total);
+    if(/pendiente|factura/i.test(f.formaPago||"")){ pend += num(f.total); nPend++; }
+  });
+  $("#pNum").textContent = S.prov.length;
+  $("#pBase").textContent = fmt(base);
+  $("#pIva").textContent = fmt(iva);
+  $("#pTotal").textContent = fmt(tot);
+  $("#pPend").textContent = fmt(pend);
+  $("#pPendDet").textContent = nPend ? "EUR · "+nPend+" factura(s)" : "EUR · nada marcado";
+  $("#cProv").textContent = S.prov.length;
+  $("#detProv").textContent = S.prov.length + " facturas";
+  const mesesP = [];
+  S.prov.forEach(f => { const m = mesDe(f.fecha); if(mesesP.indexOf(m)<0) mesesP.push(m); });
+  mesesP.sort();
+  const datosP = {}, totCat = {};
+  mesesP.forEach(m => datosP[m] = {});
+  S.prov.forEach(f => {
+    const m = mesDe(f.fecha), c = f.categoria || "🔩 Material / Suministros";
+    datosP[m][c] = (datosP[m][c]||0) + num(f.base);
+    totCat[c] = (totCat[c]||0) + num(f.base);
+  });
+  const serieP = CATEGORIAS.filter(c => totCat[c.nom]).map(c => ({k:c.nom, nom:c.nom, color:TINTA_CAT[c.nom]||"#95A5A6"}));
+  grafApiladas("#gProvMes", mesesP, serieP, datosP, "Base imponible por mes, apilada por categoría");
+  leyenda("#lProvMes", serieP, totCat);
+  ranking("#gProvCat", serieP.map(s => ({nom:s.nom, color:s.color, valor:totCat[s.k]})));
+  $("#ejeProv").textContent = mesesP.length ? mesesP.length+" meses · base imponible sin IVA" : "base imponible, sin IVA";
+  avisos("#avProv", S.prov, (f) => probP(f, derP(f)), f => f.numero);
+}
+
+function pintarVall(){
+  $("#hVall").innerHTML = cab(VCOLS, true);
+  const tb = $("#bVall");
+  const lista = S.vall.map((f,i) => ({f:f,i:i}))
+    .sort((a,b) => (a.f.fechaFactura||"").localeCompare(b.f.fechaFactura||"") || (a.f.numero||"").localeCompare(b.f.numero||""));
+  if(!lista.length){
+    tb.innerHTML = '<tr><td colspan="'+(VCOLS.length+1)+'" class="vacio">Sin facturas de Vallinoto todavía.</td></tr>';
+  } else {
+    let h = "", mes = null;
+    lista.forEach(o => {
+      const f = o.f, i = o.i, m = mesDe(f.fechaFactura);
+      if(m !== mes){
+        mes = m;
+        const g = lista.filter(x => mesDe(x.f.fechaFactura)===m);
+        const t = g.reduce((a,x) => a + num(x.f.total), 0);
+        h += '<tr class="banda"><td colspan="'+(VCOLS.length+1)+'">▶ '+nombreMes(m)+' · '+g.length+' factura(s) · '+fmt(t)+' €</td></tr>';
+      }
+      const d = derV(f), mala = probV(f,d).err.length;
+      h += '<tr'+(mala?' class="mala"':'')+'>'
+        + VCOLS.map(c => c.calc
+            ? '<td class="calc">'+fmt(c.k==="baseExenta" ? d.exenta : d.baseIva)+'</td>'
+            : celda("vall", i, c, f[c.k])).join("")
+        + '<td><button class="quitar" data-q="vall" data-i="'+i+'">×</button></td></tr>';
+    });
+    tb.innerHTML = h;
+  }
+  let bultos=0, ex=0, bi=0, iva=0, tot=0, pend=0, nPend=0;
+  S.vall.forEach(f => {
+    const d = derV(f);
+    bultos += num(f.bultos); ex += d.exenta; bi += d.baseIva; iva += num(f.iva21); tot += num(f.total);
+    if(!f.pagado){ pend += num(f.total); nPend++; }
+  });
+  $("#vNum").textContent = S.vall.length;
+  $("#vBultos").textContent = fmt(bultos,0);
+  $("#vExenta").textContent = fmt(ex);
+  $("#vBase").textContent = fmt(bi);
+  $("#vIva").textContent = fmt(iva);
+  $("#vTotal").textContent = fmt(tot);
+  $("#vPend").textContent = fmt(pend);
+  $("#vPendDet").textContent = nPend ? "EUR · "+nPend+" factura(s)" : "EUR · todo pagado";
+  $("#cVall").textContent = S.vall.length;
+  $("#detVall").textContent = S.vall.length + " facturas";
+  const mesesV = [];
+  S.vall.forEach(f => { const m = mesDe(f.fechaFactura); if(mesesV.indexOf(m)<0) mesesV.push(m); });
+  mesesV.sort();
+  const datosV = {}, totC = {}, bultosMes = {}, baseMes = {};
+  mesesV.forEach(m => { datosV[m] = {}; bultosMes[m] = 0; baseMes[m] = 0; });
+  S.vall.forEach(f => {
+    const m = mesDe(f.fechaFactura);
+    COSTES.forEach(k => { const v = num(f[k]); if(v){ datosV[m][k] = (datosV[m][k]||0)+v; totC[k] = (totC[k]||0)+v; } });
+    bultosMes[m] += num(f.bultos); baseMes[m] += num(f.importeBase);
+  });
+  const serieV = VCOLS.filter(c => c.coste && totC[c.k])
+    .map(c => ({k:c.k, nom:c.t.replace(/\n/g," ").replace(" (€)",""), color:TINTA_VALL[c.k]||"#95A5A6"}));
+  grafApiladas("#gVallMes", mesesV, serieV, datosV, "Importe base por mes, apilado por concepto");
+  leyenda("#lVallMes", serieV, totC);
+  const porBulto = {};
+  mesesV.forEach(m => porBulto[m] = bultosMes[m] ? baseMes[m]/bultosMes[m] : 0);
+  grafSimple("#gVallBulto", mesesV, porBulto, "#2E75B6", "Euros de coste Vallinoto por bulto despachado", 2);
+  ranking("#gVallCat", serieV.map(s => ({nom:s.nom, color:s.color, valor:totC[s.k]})));
+  $("#ejeVall").textContent = mesesV.length ? mesesV.length+" meses · importe base sin IVA" : "importe base, sin IVA";
+  pintarPagos();
+  avisos("#avVall", S.vall, (f) => probV(f, derV(f)), f => f.numero);
+}
+function avisos(sel, lista, fn, id){
+  const av = [];
+  lista.forEach(f => {
+    const p = fn(f);
+    if(p.err.length)  av.push([(id(f)||"(sin número)")+": "+p.err.join(", ")+".", "corregir"]);
+    if(p.warn.length) av.push([(id(f)||"(sin número)")+": "+p.warn.join(", ")+".", "revisar"]);
+  });
+  const vistos = {};
+  lista.forEach(f => { const n = id(f); if(n) vistos[n] = (vistos[n]||0)+1; });
+  Object.keys(vistos).filter(n => vistos[n]>1).forEach(n => av.push(["La factura "+n+" está "+vistos[n]+" veces.", "repetida"]));
+  $(sel).innerHTML = av.length
+    ? av.map(a => '<div class="aviso"><span class="m">'+esc(a[1])+'</span><span>'+esc(a[0])+'</span></div>').join("")
+    : (lista.length ? '<div class="aviso ok"><span class="m">listo</span><span>Todo cuadra.</span></div>' : "");
+}
+/* ===================== Pagos ===================== */
+const normNum = s => String(s==null?"":s).toUpperCase().replace(/[^A-Z0-9]/g,"");
+
+function pendientes(tr){
+  return S.vall.filter(f => !f.pagado || (tr && tr.asignadas.indexOf(f.numero) >= 0))
+               .sort((a,b) => (a.fechaFactura||"").localeCompare(b.fechaFactura||""));
+}
+function conciliar(tr){
+  const libres = S.vall.filter(f => !f.pagado)
+                       .sort((a,b) => (a.fechaFactura||"").localeCompare(b.fechaFactura||""));
+  const meta = num(tr.importe);
+  /* A · por número de factura citado en el justificante */
+  if((tr.facturas||[]).length){
+    const pedidas = tr.facturas.map(normNum);
+    const halladas = libres.filter(f => pedidas.indexOf(normNum(f.numero)) >= 0).map(f => f.numero);
+    if(halladas.length){ tr.asignadas = halladas; tr.metodo = "por número de factura"; return; }
+  }
+  /* B · una sola factura por el importe exacto */
+  const sola = libres.filter(f => Math.abs(num(f.total) - meta) < 0.02);
+  if(sola.length === 1){ tr.asignadas = [sola[0].numero]; tr.metodo = "importe exacto de una factura"; return; }
+  /* C · todo lo pendiente de un mes: es como se paga a Vallinoto */
+  const meses = [];
+  libres.forEach(f => { const m = mesDe(f.fechaFactura); if(meses.indexOf(m)<0) meses.push(m); });
+  for(let i = 0; i < meses.length; i++){
+    const g = libres.filter(f => mesDe(f.fechaFactura) === meses[i]);
+    if(Math.abs(g.reduce((a,f) => a + num(f.total), 0) - meta) < 0.02){
+      tr.asignadas = g.map(f => f.numero);
+      tr.metodo = "todo lo pendiente de " + nombreMes(meses[i]).toLowerCase();
+      return;
+    }
+  }
+  /* D · un tramo consecutivo por fecha que sume el importe */
+  for(let i = 0; i < libres.length; i++){
+    let s = 0;
+    for(let j = i; j < libres.length; j++){
+      s += num(libres[j].total);
+      if(Math.abs(s - meta) < 0.02){
+        tr.asignadas = libres.slice(i, j+1).map(f => f.numero);
+        tr.metodo = "tramo de " + (j-i+1) + " facturas consecutivas";
+        return;
+      }
+      if(s > meta + 0.02) break;
+    }
+  }
+  tr.asignadas = [];
+  tr.metodo = "sin cuadre automático, márcalas a mano";
+}
+/* El concepto del banco suele citar un rango de expedientes. Sirve de contraste, no de criterio:
+   las series ADM quedan fuera y a veces entra algún expediente por encima del tope citado. */
+function contrasteRango(tr){
+  const m = String(tr.concepto||"").match(/(\d{5,})\D+(?:a\s*la\s*)?(\d{5,})/);
+  if(!m || !tr.asignadas.length) return "";
+  const lo = parseInt(m[1],10), hi = parseInt(m[2],10);
+  if(hi <= lo) return "";
+  const dentro = e => { const d = String(e||"").replace(/\D/g,""); return d && parseInt(d,10) >= lo && parseInt(d,10) <= hi; };
+  const fuera = S.vall.filter(f => tr.asignadas.indexOf(f.numero) >= 0 && !dentro(f.expediente));
+  if(!fuera.length) return "";
+  return "El concepto cita del " + lo + " al " + hi + ", pero " + fuera.length
+       + " de las marcadas quedan fuera de ese rango (" + fuera.map(f => f.expediente || f.numero).join(", ")
+       + "). El importe cuadra igualmente, así que manda el importe.";
+}
+function aplicarPago(tr){
+  const marca = tr.fecha ? "Sí " + ddmm(tr.fecha) : "Sí";
+  S.vall.forEach(f => {
+    const dentro = tr.asignadas.indexOf(f.numero) >= 0;
+    if(dentro) f.pagado = marca;
+    else if(f.pagado === marca && f.pagoRef === tr.id) f.pagado = "";
+  });
+  S.vall.forEach(f => { if(tr.asignadas.indexOf(f.numero) >= 0) f.pagoRef = tr.id; });
+}
+function pintarPagos(){
+  const sel = $("#mesPago");
+  const meses = [];
+  S.vall.forEach(f => { const m = mesDe(f.fechaFactura); if(meses.indexOf(m)<0) meses.push(m); });
+  meses.sort();
+  const prev = sel.value;
+  sel.innerHTML = meses.map(m => {
+    const g = S.vall.filter(x => mesDe(x.fechaFactura)===m);
+    const sinPagar = g.filter(x => !x.pagado).length;
+    return '<option value="'+m+'">'+nombreMes(m)+' — '+g.length+' fact., '+sinPagar+' sin marcar</option>';
+  }).join("");
+  if(prev && meses.indexOf(prev)>=0) sel.value = prev;
+
+  const cont = $("#listaPagos");
+  cont.innerHTML = S.pagos.map((tr,i) => {
+    const asignado = S.vall.filter(f => tr.asignadas.indexOf(f.numero) >= 0)
+                           .reduce((a,f) => a + num(f.total), 0);
+    const resto = num(tr.importe) - asignado;
+    const cerrado = Math.abs(resto) < 0.02;
+    return '<div class="tr">'
+      + '<div class="cab"><b>'+esc(tr.fecha ? ddmm(tr.fecha) : "sin fecha")+'</b>'
+      + '<span>'+esc(tr.beneficiario || "Vallinoto Cargo")+'</span>'
+      + '<span style="color:var(--apagado)">'+esc(tr.metodo||"")+'</span>'
+      + '<span class="imp">'+fmt(num(tr.importe))+' €</span>'
+      + '<button class="quitar" data-trq="'+i+'" title="Quitar transferencia">×</button></div>'
+      + '<div class="cuerpo">Marca o desmarca facturas tocándolas:'
+      + '<div class="lista">' + pendientes(tr).map(f =>
+          '<span class="fac'+(tr.asignadas.indexOf(f.numero)>=0?" on":"")+'" data-tri="'+i+'" data-fac="'+esc(f.numero)+'">'
+          + esc(f.numero)+' · '+fmt(num(f.total))+'</span>').join("")
+      + '</div>'
+      + (tr.concepto ? '<div style="color:var(--apagado);margin-top:6px">Concepto del banco: '+esc(tr.concepto)+'</div>' : '')
+      + (contrasteRango(tr) ? '<div class="resto">'+esc(contrasteRango(tr))+'</div>' : '')
+      + '<div class="resto'+(cerrado?" ok":"")+'">'
+      + (cerrado ? "Cuadrada: "+tr.asignadas.length+" factura(s) marcadas como pagadas."
+                 : "Quedan "+fmt(resto)+" € por asignar de esta transferencia.")
+      + '</div></div></div>';
+  }).join("");
+  const sinMarcar = S.vall.filter(f => !f.pagado);
+  $("#detPagos").textContent = sinMarcar.length
+    ? sinMarcar.length + " facturas sin marcar · " + fmt(sinMarcar.reduce((a,f) => a + num(f.total), 0)) + " €"
+    : "todas las facturas marcadas como pagadas";
+}
+function marcarMes(){
+  const m = $("#mesPago").value, d = $("#fechaPago").value;
+  if(!m) return;
+  if(!d) return alert("Elige la fecha de pago.");
+  S.vall.forEach(f => { if(mesDe(f.fechaFactura)===m) f.pagado = "Sí " + ddmm(d); });
+  pintarVall();
+}
+function desmarcarMes(){
+  const m = $("#mesPago").value;
+  if(!m) return;
+  S.vall.forEach(f => { if(mesDe(f.fechaFactura)===m) f.pagado = ""; });
+  pintarVall();
+}
+document.addEventListener("click", e => {
+  if(e.target.dataset.trq !== undefined){ S.pagos.splice(e.target.dataset.trq,1); pintarVall(); return; }
+  if(e.target.dataset.fac !== undefined){
+    const tr = S.pagos[e.target.dataset.tri], n = e.target.dataset.fac;
+    const k = tr.asignadas.indexOf(n);
+    if(k>=0) tr.asignadas.splice(k,1); else tr.asignadas.push(n);
+    tr.metodo = "asignada a mano";
+    aplicarPago(tr); pintarVall();
+  }
+});
+
+/* ===================== Ventas ===================== */
+const COLOR_ANIO = {"2023":"#95A5A6","2024":"#5DADE2","2025":"#2E75B6","2026":"#1F4E79"};
+const VCOLSV = [
+  {k:"mes",       t:"Mes",         w:11, f:"t", a:"center"},
+  {k:"importe",   t:"Base imponible", w:15, f:"e", a:"right"},
+  {k:"lineas",    t:"Documentos",  w:12, f:"n", a:"right"},
+  {k:"total",     t:"Total con IVA",w:14, f:"e", a:"right"},
+  {k:"pagado",    t:"Cobrado",     w:13, f:"e", a:"right"},
+  {k:"pendiente", t:"Pendiente",   w:13, f:"e", a:"right"},
+  {k:"informe",   t:"Listado de",  w:13, f:"d", a:"center"}
+];
+function pintarVentas(){
+  const lista = S.ventas.slice().sort((a,b) => a.mes.localeCompare(b.mes));
+  const meses = lista.map(v => v.mes);
+  const anios = [];
+  meses.forEach(m => { const a = m.slice(0,4); if(anios.indexOf(a)<0) anios.push(a); });
+  const datos = {}, totAnio = {};
+  lista.forEach(v => {
+    const a = v.mes.slice(0,4);
+    datos[v.mes] = {}; datos[v.mes][a] = num(v.importe);
+    totAnio[a] = (totAnio[a]||0) + num(v.importe);
+  });
+  const serie = anios.map(a => ({k:a, nom:a, color:COLOR_ANIO[a] || "#5B7C99"}));
+  grafApiladas("#gVentMes", meses, serie, datos, "Importe facturado por mes, color por año");
+  leyenda("#lVentAnios", serie, totAnio);
+  $("#cVent").textContent = lista.length;
+  $("#detVent").textContent = lista.length
+    ? lista.length+" meses · "+meses[0]+" a "+meses[meses.length-1] : "sin datos";
+
+  /* cobro de lo facturado, solo meses que traen el listado completo */
+  const conCobro = lista.filter(v => num(v.total));
+  if(!conCobro.length){
+    $("#kCobro").innerHTML = '<div class="kpi"><div class="d">Suelta un listado de facturas de ventas y aquí sale cuánto de lo emitido está cobrado.</div></div>';
+    $("#detCobro").textContent = "sin listados cargados";
+  } else {
+    const t = conCobro.reduce((a,v) => a + num(v.total), 0);
+    const c = conCobro.reduce((a,v) => a + num(v.pagado), 0);
+    const d = conCobro.reduce((a,v) => a + num(v.pendiente), 0);
+    const ult = conCobro[conCobro.length-1];
+    $("#detCobro").textContent = conCobro.length+" mes(es) con listado · "+conCobro[0].mes+" a "+ult.mes;
+    $("#kCobro").innerHTML =
+      kpi("Facturado con IVA", fmt(t,0), "€", conCobro.length+" mes(es) con listado completo cargado.")
+    + kpi("Cobrado", fmt(c,0), "€", t ? fmt(c/t*100,1)+" % de lo emitido." : "")
+    + kpi("Pendiente", fmt(d,0), "€", t ? fmt(d/t*100,1)+" % sigue sin cobrar." : "", (t && d/t>0.3)?"mal":(t && d/t>0.15)?"ojo":"bien")
+    + kpi("Ticket medio", fmt(num(ult.lineas) ? num(ult.total)/num(ult.lineas) : 0), "€", "Por documento en "+ult.mes+", sobre "+fmt(num(ult.lineas),0)+" facturas.")
+    + kpi("Antigüedad de la foto", conCobro.map(v => {
+        if(!v.informe) return v.mes+" sin fecha";
+        const fin = new Date(v.mes+"-01T00:00:00"); fin.setMonth(fin.getMonth()+1);
+        return v.mes+" +"+Math.round((new Date(v.informe+"T00:00:00")-fin)/86400000)+"d";
+      }).join(" · "), "", "Días entre el cierre del mes y la impresión del listado. Un listado impreso antes enseña más pendiente del que realmente queda.");
+  }
+
+  /* mismo mes, año contra año */
+  $("#hAnios").innerHTML = "<tr><th>Mes</th>" + anios.map(a => "<th>"+a+"</th>").join("")
+    + (anios.length>1 ? "<th>Variación último año</th>" : "") + "</tr>";
+  let h = "";
+  for(let i = 1; i <= 12; i++){
+    const mm = String(i).padStart(2,"0");
+    const val = {};
+    anios.forEach(a => { const v = lista.filter(x => x.mes === a+"-"+mm)[0]; val[a] = v ? num(v.importe) : null; });
+    if(anios.every(a => val[a] === null)) continue;
+    const ult = anios[anios.length-1], pen = anios[anios.length-2];
+    let vr = "";
+    if(pen && val[ult] !== null && val[pen]){
+      const d = (val[ult]-val[pen])/val[pen]*100;
+      vr = '<td class="calc" style="color:'+(d<0?"#A02020":"var(--verde)")+'">'+(d>0?"+":"")+fmt(d,1)+" %</td>";
+    } else if(anios.length>1) vr = '<td class="calc">—</td>';
+    h += "<tr><td class='c clave1'><input value='"+MESCORTO[i-1]+"' readonly tabindex='-1'></td>"
+       + anios.map(a => '<td class="calc">'+(val[a]===null ? "—" : fmt(val[a],0)+" €")+'</td>').join("") + vr + "</tr>";
+  }
+  const tr = "<tr><td class='c clave1'><input value='TOTAL' readonly tabindex='-1'></td>"
+    + anios.map(a => '<td class="calc"><b>'+fmt(totAnio[a],0)+' €</b></td>').join("")
+    + (anios.length>1 ? "<td class='calc'></td>" : "") + "</tr>";
+  $("#bAnios").innerHTML = h + tr;
+
+  /* mezcla de producto: último año completo */
+  const conAnio = Object.keys(S.familias||{}).length
+    ? Object.keys(S.familias[Object.keys(S.familias)[0]]) : [];
+  const anioFam = conAnio.length > 1 ? conAnio[conAnio.length-2] : conAnio[0];
+  const paleta = ["#7E57C2","#2E75B6","#17A589","#C9A227","#E8833A","#C0392B","#5DADE2","#D6608F","#5B7C99","#95A5A6"];
+  ranking("#gFamilias", Object.keys(S.familias||{}).map((f,i) =>
+    ({nom:f, color:paleta[i%paleta.length], valor:aTallos(f, (S.familias[f]||{})[anioFam])})), "tallos", 0);
+  if(anioFam) $("#detFam").textContent = "tallos vendidos en "+anioFam+" · paquetes convertidos a tallo";
+
+  /* tabla editable */
+  $("#hVent").innerHTML = "<tr>" + VCOLSV.map(c => '<th style="min-width:'+Math.round(c.w*7)+'px">'+c.t+"</th>").join("")
+    + "<th>Ticket medio</th><th></th></tr>";
+  $("#bVent").innerHTML = lista.length ? lista.map(v => {
+    const i = S.ventas.indexOf(v);
+    const tk = num(v.lineas) ? num(v.importe)/num(v.lineas) : 0;
+    return "<tr>" + VCOLSV.map(c => celda("ventas", i, c, v[c.k])).join("")
+      + '<td class="calc">'+fmt(tk)+' €</td>'
+      + '<td><button class="quitar" data-q="ventas" data-i="'+i+'">×</button></td></tr>';
+  }).join("") : '<tr><td colspan="5" class="vacio">Sin meses cargados.</td></tr>';
+}
+function addVenta(){
+  S.ventas.push({mes:new Date().toISOString().slice(0,7), importe:0, lineas:0});
+  verTab("vent"); pintar();
+}
+
+/* ===================== Ratios ===================== */
+function kpi(k, v, u, d, estado){
+  return '<div class="kpi'+(estado?" "+estado:"")+'"><div class="k">'+esc(k)+'</div>'
+       + '<div class="v">'+esc(v)+(u?'<small>'+esc(u)+'</small>':'')+'</div>'
+       + '<div class="d">'+esc(d)+'</div></div>';
+}
+/* El IVA de aduana de las facturas de Vallinoto es el 10% del valor en aduana,
+   y ese valor es la flor más el flete puestos en Madrid. Despejando:
+   flor + flete = IVA de aduana ÷ 0,10. Vale para todas las importaciones,
+   porque Vallinoto despacha tanto Ecuador como Colombia. */
+const TIPO_ADUANA = 0.10;
+/* Una unidad del CRM no es un tallo: en rosa y paniculata es un paquete de 25,
+   en alstroemeria un paquete de 10. Solo clavel y hortensia se venden por tallo suelto.
+   Para comparar familias hay que llevarlo todo a tallos. */
+const TALLOS_POR_UNIDAD = {"Rosa":25, "Paniculata":25, "Alstroemeria":10};
+const aTallos = (familia, unidades) => num(unidades) * (TALLOS_POR_UNIDAD[familia] || 1);
+function margenVivo(){
+  const ven = {};
+  S.ventas.forEach(v => { if(num(v.importe)) ven[v.mes] = num(v.importe); });
+  const filas = [];
+  let aV = 0, aC = 0;
+  Object.keys(ven).sort().forEach(m => {
+    const iva = S.vall.filter(f => mesDe(f.fechaFactura)===m).reduce((a,f) => a + num(f.ivaAduana), 0);
+    const imp = iva / TIPO_ADUANA;
+    const nac = S.prov.filter(f => mesDe(f.fecha)===m && (f.categoria||"").indexOf("Flores")>=0)
+                      .reduce((a,f) => a + num(f.base), 0);
+    if(!iva) return;   /* sin IVA de aduana no hay nada que despejar: el mes no se puede calcular */
+    aV += ven[m]; aC += imp + nac;
+    filas.push({mes:m, ventas:ven[m], iva:iva, importado:imp, nacional:nac,
+                cogs:imp+nac, acumPct: aV ? (aV-aC)/aV*100 : 0});
+  });
+  return filas;
+}
+function pintarVivo(){
+  const F = S.fin, filas = margenVivo();
+  if(!filas.length){
+    $("#kVivo").innerHTML = '<div class="kpi"><div class="d">Necesito meses que tengan a la vez ventas cargadas y facturas de Vallinoto.</div></div>';
+    $("#gMargen").innerHTML = '<div class="vacio">Sin datos.</div>';
+    $("#avVivo").innerHTML = ""; return;
+  }
+  const orden = filas.map(f => f.ventas).slice().sort((a,b) => a-b);
+  const med = orden[Math.floor(orden.length/2)];
+  const flojos = filas.filter(f => f.ventas < med*0.4);
+  const buenas = filas.filter(f => f.ventas >= med*0.4);
+  const bV = buenas.reduce((a,f) => a + f.ventas, 0), bC = buenas.reduce((a,f) => a + f.cogs, 0);
+  const pct = bV ? (bV-bC)/bV*100 : 0;
+  const refe = F ? F.margenBrutoPct : null, dif = refe!==null ? pct-refe : null;
+  $("#detVivo").textContent = filas[0].mes+" a "+filas[filas.length-1].mes+" · despejado del IVA de aduana";
+  $("#kVivo").innerHTML =
+    kpi("Margen bruto del periodo", fmt(pct,1), "%",
+        (refe!==null ? "El cierre de "+F.periodo+" fue "+fmt(refe,1)+" %, así que vas "+(dif>=0?"+":"")+fmt(dif,1)+" puntos "+(dif>=0?"por encima":"por debajo")+"." : "")
+        + (flojos.length ? " Dejo fuera "+flojos.map(f=>f.mes).join(", ")+" por tener las ventas a medio cargar." : ""),
+        (refe!==null && pct>=refe) ? "bien" : "ojo")
+  + kpi("Flor y flete importados", fmt(buenas.reduce((a,f)=>a+f.importado,0),0), "€",
+        "Despejado de "+fmt(buenas.reduce((a,f)=>a+f.iva,0),0)+" € de IVA de aduana. Cubre Ecuador y Colombia, y el vuelo lo facture quien lo facture.")
+  + kpi("Compra nacional de flor", fmt(buenas.reduce((a,f)=>a+f.nacional,0),0), "€", "Proveedores españoles del registro de facturas.")
+  + kpi("COGS del periodo", fmt(bC,0), "€", "Las dos anteriores juntas: lo que cuesta la mercancía puesta en el almacén.")
+  + kpi("Margen bruto en euros", fmt(bV-bC,0), "€", "Sobre "+fmt(bV,0)+" € facturados.");
+  const eje = {};
+  filas.forEach(f => eje[f.mes] = f.acumPct);
+  grafSimple("#gMargen", filas.map(f=>f.mes), eje, "#2E75B6", "Margen bruto acumulado desde el primer mes, en %", 1);
+  const av = [["Mes a mes esta cifra no vale: la mercancía que despachas un mes la vendes al siguiente, así que el coste va por delante de la venta. Por eso el gráfico es acumulado y converge.", "método"]];
+  flojos.forEach(f => av.push([f.mes+" tiene "+fmt(f.ventas,0)+" € de ventas frente a una mediana de "+fmt(med,0)+" €. Está a medio cargar y queda fuera del cálculo.", "dato flojo"]));
+  const sinVenta = [];
+  S.vall.forEach(f => { const m = mesDe(f.fechaFactura);
+    if(m!=="0000-00" && !S.ventas.some(v => v.mes===m && num(v.importe)) && sinVenta.indexOf(m)<0) sinVenta.push(m); });
+  if(sinVenta.length) av.push(["Hay facturas de Vallinoto de "+sinVenta.sort().join(", ")+" sin ventas cargadas. Añade esos meses en la pestaña de ventas y el margen se recalcula solo.", "falta"]);
+  $("#avVivo").innerHTML = av.map(a => '<div class="aviso"><span class="m">'+esc(a[1])+'</span><span>'+esc(a[0])+'</span></div>').join("");
+}
+function pintarRatios(){
+  const F = S.fin;
+  pintarVivo();
+  if(!F){ $("#kRent").innerHTML = '<div class="vacio">Faltan los datos de cierre.</div>'; return; }
+  const r = F.ratios || {};
+  $("#detRat").textContent = "cierre "+F.periodo+" · "+F.cierre;
+
+  $("#kRent").innerHTML =
+    kpi("Margen bruto", fmt(F.margenBrutoPct,1), "%", "De cada 100 € de venta, "+fmt(100-F.margenBrutoPct,0)+" se van en comprar la flor y traerla.", F.margenBrutoPct<20?"ojo":"bien")
+  + kpi("Margen neto", fmt(F.margenNetoPct,2), "%", "Beneficio neto "+fmt(F.beneficioNeto,0)+" € sobre ventas netas de "+fmt(F.ventasNetas,0)+" €.", F.margenNetoPct<5?"ojo":"bien")
+  + kpi("EBITDA real", fmt(F.ebitdaReal,0), "€", "El oficial es "+fmt(F.ebitdaOficial,0)+" €. La diferencia es la gerencia externa, que es coste aunque no vaya en personal.", F.ebitdaReal<F.ebitdaOficial*0.6?"ojo":"")
+  + kpi("Cifra de negocio", fmt(F.cifraNegocio,0), "€", "Ventas netas más prestaciones de servicios.")
+  + kpi("Compras y flete", fmt(Math.abs(F.cogs),0), "€", "Es "+fmt(Math.abs(F.cogs)/F.cifraNegocio*100,1)+" % de la cifra de negocio. Aquí es donde se gana o se pierde el año.", "ojo");
+
+  const pmc = r.periodo_medio_cobro_dias||0, pmp = r.periodo_medio_pago_dias||0, gap = pmc-pmp;
+  const co = F.cobros||{}, ag = co.aging||{};
+  const vencido = (ag.vencido_31_60||0)+(ag.vencido_61_90||0)+(ag.vencido_91_180||0)+(ag.vencido_180_plus||0);
+  $("#kCirc").innerHTML =
+    kpi("Periodo medio de cobro", fmt(pmc,1), "días", "Lo que tardan tus clientes en pagarte.", pmc>50?"mal":pmc>35?"ojo":"bien")
+  + kpi("Periodo medio de pago", fmt(pmp,1), "días", "Lo que tardas tú en pagar a tus proveedores.", pmp<20?"ojo":"bien")
+  + kpi("Hueco a financiar", fmt(gap,1), "días", "Pagas "+fmt(gap,0)+" días antes de cobrar. Es el circulante que pones tú.", gap>40?"mal":gap>20?"ojo":"bien")
+  + kpi("Pendiente de cobro", fmt(co.pendiente||0,0), "€", (co.facturas||0)+" facturas de "+(co.clientes||0)+" clientes.", "")
+  + kpi("Vencido", fmt(vencido,0), "€", "Pasado de 30 días. Es "+(co.pendiente?fmt(vencido/co.pendiente*100,1):"0")+" % de la cartera.", vencido>co.pendiente*0.25?"mal":"ojo");
+
+  grafSimple("#gGap", ["cobro","pago"], {cobro:pmc, pago:pmp}, "#2E75B6", "Días de cobro contra días de pago", 1);
+
+  $("#kFin").innerHTML =
+    kpi("Liquidez", fmt(r.liquidez||0,3), "", "Activo corriente entre pasivo corriente. Por debajo de 1 no cubres el corto plazo con lo que tienes.", (r.liquidez||0)<1?"mal":"bien")
+  + kpi("Fondo de maniobra", fmt(r.fondo_maniobra||0,0), "€", "En negativo estás financiando el circulante con deuda a corto.", (r.fondo_maniobra||0)<0?"mal":"bien")
+  + kpi("Autonomía", fmt(r.autonomia_pct||0,1), "%", "Patrimonio neto sobre activo. Endeudamiento "+fmt(r.endeudamiento_pct||0,1)+" %.", (r.autonomia_pct||0)>50?"bien":"ojo")
+  + kpi("ROE", fmt(r.roe_pct||0,2), "%", "Lo que renta el dinero de los socios.", (r.roe_pct||0)>15?"bien":"")
+  + kpi("ROA", fmt(r.roa_pct||0,2), "%", "Lo que renta el activo.", (r.roa_pct||0)>10?"bien":"")
+  + kpi("Rotación de activos", fmt(r.rotacion_activos||0,2), "x", "Vendes "+fmt(r.rotacion_activos||0,2)+" € por cada euro de activo.", "bien");
+
+  /* --- ratios vivos, con lo que haya cargado --- */
+  const mesesVenta = {};
+  S.ventas.forEach(v => mesesVenta[v.mes] = num(v.importe));
+  const mesesVall = {};
+  S.vall.forEach(f => { const m = mesDe(f.fechaFactura); if(m!=="0000-00") mesesVall[m] = true; });
+  const comunes = Object.keys(mesesVall).filter(m => mesesVenta[m] !== undefined).sort();
+  let ventasP = 0, baseVall = 0, ivaAd = 0, bultos = 0;
+  comunes.forEach(m => {
+    ventasP += mesesVenta[m];
+    S.vall.filter(f => mesDe(f.fechaFactura)===m).forEach(f => {
+      baseVall += num(f.importeBase); ivaAd += num(f.ivaAduana); bultos += num(f.bultos);
+    });
+  });
+  const costeVall = baseVall - ivaAd;   /* el IVA de aduana es un adelanto que recuperas, no un gasto */
+  let flores = 0, estructura = 0;
+  S.prov.forEach(f => {
+    if(comunes.indexOf(mesDe(f.fecha)) < 0) return;
+    if((f.categoria||"").indexOf("Flores") >= 0) flores += num(f.base); else estructura += num(f.base);
+  });
+  /* un mes de ventas muy por debajo de la mediana suele ser un mes a medio cargar */
+  const orden = comunes.map(m => mesesVenta[m]).sort((a,b) => a-b);
+  const mediana = orden.length ? orden[Math.floor(orden.length/2)] : 0;
+  const flojos = comunes.filter(m => mediana && mesesVenta[m] < mediana*0.4);
+  const per = comunes.length ? comunes[0]+" a "+comunes[comunes.length-1] : "sin solape";
+  $("#kLog").innerHTML = !comunes.length
+    ? '<div class="kpi"><div class="d">No hay meses con ventas y gastos a la vez. Añade los meses que falten en la pestaña de ventas.</div></div>'
+    : kpi("Periodo comparado", comunes.length, "meses", per+"."
+        + (flojos.length ? " Cuidado: "+flojos.join(", ")+" tiene ventas muy por debajo de lo normal, seguramente esté a medio cargar y desvirtúe los porcentajes." : ""),
+        flojos.length?"ojo":"")
+    + kpi("Coste Vallinoto por bulto", fmt(bultos ? costeVall/bultos : 0), "€", fmt(costeVall,0)+" € de coste real sobre "+fmt(bultos,0)+" bultos. Sin contar el IVA de aduana.")
+    + kpi("Vallinoto sobre ventas", fmt(ventasP ? costeVall/ventasP*100 : 0,2), "%", "Despacho, transporte y pallets. Ya descontado el IVA de aduana.", (ventasP && costeVall/ventasP>0.06)?"ojo":"bien")
+    + kpi("IVA de aduana adelantado", fmt(ivaAd,0), "€", "No es gasto, lo recuperas. Pero sale de tu caja antes que la venta, así que engorda el circulante que financias.", "ojo")
+    + kpi("Compra nacional de flor", fmt(ventasP ? flores/ventasP*100 : 0,2), "%", fmt(flores,0)+" € a proveedores españoles. No incluye las fincas de Ecuador y Colombia, que van en dólares aparte.")
+    + kpi("Gasto de estructura", fmt(ventasP ? estructura/ventasP*100 : 0,2), "%", fmt(estructura,0)+" € de combustible, renting, asesoría, suministros y demás.", (ventasP && estructura/ventasP>0.08)?"ojo":"bien");
+
+  const cien = F.cien || {};
+  const nombres = {flores_y_flete:"Flores y flete", trabajos_externos:"Trabajos externos",
+    personal_oficial:"Personal", gerencia_externa:"Gerencia externa", profesionales_resto:"Profesionales",
+    reparaciones:"Reparaciones", transporte_terrestre:"Transporte terrestre", otros_gastos:"Otros gastos",
+    amortizacion:"Amortización", enajenaciones:"Enajenaciones", beneficio_neto:"Beneficio neto"};
+  const pal = {flores_y_flete:"#7E57C2", trabajos_externos:"#5B7C99", personal_oficial:"#2E75B6",
+    gerencia_externa:"#C0392B", profesionales_resto:"#95A5A6", reparaciones:"#E8833A",
+    transporte_terrestre:"#C9A227", otros_gastos:"#5DADE2", amortizacion:"#D6608F",
+    enajenaciones:"#17A589", beneficio_neto:"#2E7D5B"};
+  ranking("#gCien", Object.keys(cien).map(k => ({nom:nombres[k]||k, color:pal[k]||"#95A5A6", valor:cien[k]})));
+  $("#detCien").textContent = "euros por cada 100 de venta · cierre "+F.periodo;
+}
+
+/* ===================== Gráficas ===================== */
+const MESCORTO = ["ENE","FEB","MAR","ABR","MAY","JUN","JUL","AGO","SEP","OCT","NOV","DIC"];
+function mesCorto(ym){ const p = ym.split("-"), i = parseInt(p[1],10)-1;
+  return MESCORTO[i] ? MESCORTO[i]+" "+p[0].slice(2) : "s/f"; }
+function paso(rango){
+  if(rango <= 0) return 1;
+  const bruto = rango/4, exp = Math.pow(10, Math.floor(Math.log10(bruto))), r = bruto/exp;
+  return (r<=1?1:r<=2?2:r<=2.5?2.5:r<=5?5:10) * exp;
+}
+function ejeY(yMin,yMax){
+  const p = paso(yMax-yMin), t = [];
+  for(let v = Math.ceil(yMin/p)*p; v <= yMax+p*0.001; v += p) t.push(Math.abs(v)<1e-9?0:v);
+  return t;
+}
+function grafApiladas(sel, meses, series, datos, sufijo){
+  const cont = $(sel);
+  if(!meses.length || !series.length){ cont.innerHTML = '<div class="vacio">Sin datos todavía.</div>'; return; }
+  const W=1000, H=300, L=74, R=14, T=16, B=46, pw=W-L-R, ph=H-T-B;
+  let yMax=0, yMin=0;
+  const tot = {};
+  meses.forEach(m => {
+    let pos=0, neg=0;
+    series.forEach(s => { const v = (datos[m]||{})[s.k]||0; if(v>=0) pos+=v; else neg+=v; });
+    tot[m] = pos+neg;
+    if(pos>yMax) yMax=pos; if(neg<yMin) yMin=neg;
+  });
+  if(yMax===0 && yMin===0){ cont.innerHTML = '<div class="vacio">Sin importes.</div>'; return; }
+  yMax = yMax*1.12 || 1;
+  const ticks = ejeY(yMin, yMax);
+  const lo = Math.min(yMin, ticks[0]), hi = Math.max(yMax, ticks[ticks.length-1]);
+  const y = v => T + (hi-v)/(hi-lo)*ph;
+  const banda = pw/meses.length, ancho = Math.min(74, banda*0.6);
+  let s = '<svg viewBox="0 0 '+W+' '+H+'" role="img" preserveAspectRatio="xMidYMid meet">';
+  ticks.forEach(t => {
+    s += '<line class="'+(t===0?"cero":"grid")+'" x1="'+L+'" y1="'+y(t).toFixed(1)+'" x2="'+(W-R)+'" y2="'+y(t).toFixed(1)+'"/>'
+       + '<text class="gy" x="'+(L-8)+'" y="'+(y(t)+3.5).toFixed(1)+'" text-anchor="end">'+fmt(t,0)+'</text>';
+  });
+  meses.forEach((m,i) => {
+    const cx = L + banda*i + banda/2, x = cx - ancho/2;
+    let up = 0, dn = 0;
+    series.forEach(sr => {
+      const v = (datos[m]||{})[sr.k] || 0;
+      if(!v) return;
+      let y0, y1;
+      if(v > 0){ y0 = y(up+v); y1 = y(up); up += v; }
+      else { y0 = y(dn); y1 = y(dn+v); dn += v; }
+      const h = Math.max(0.8, y1-y0);
+      s += '<rect x="'+x.toFixed(1)+'" y="'+y0.toFixed(1)+'" width="'+ancho.toFixed(1)+'" height="'+h.toFixed(1)+'" fill="'+sr.color+'">'
+         + '<title>'+esc(sr.nom)+" · "+mesCorto(m)+" · "+fmt(v)+" €</title></rect>";
+    });
+    const salto = Math.ceil(meses.length/13);
+    if(meses.length <= 14 || i % salto === 0 || i === meses.length-1)
+      s += '<text class="gx" x="'+cx.toFixed(1)+'" y="'+(H-B+20)+'" text-anchor="middle">'+mesCorto(m)+'</text>';
+    if(meses.length <= 16)
+      s += '<text class="gval" x="'+cx.toFixed(1)+'" y="'+(y(Math.max(0,up))-6).toFixed(1)+'" text-anchor="middle">'+fmt(tot[m],0)+'</text>';
+  });
+  s += '<text class="gtit" x="'+L+'" y="'+(H-8)+'">'+esc(sufijo||"")+'</text>';
+  s += '<line class="cero" x1="'+L+'" y1="'+y(Math.max(lo,Math.min(hi,0))).toFixed(1)+'" x2="'+(W-R)+'" y2="'+y(Math.max(lo,Math.min(hi,0))).toFixed(1)+'"/></svg>';
+  cont.innerHTML = s;
+}
+function grafSimple(sel, meses, valores, color, sufijo, dec){
+  const cont = $(sel);
+  const con = meses.filter(m => valores[m]);
+  if(!con.length){ cont.innerHTML = '<div class="vacio">Sin datos todavía.</div>'; return; }
+  const W=1000, H=230, L=74, R=14, T=16, B=44, pw=W-L-R, ph=H-T-B;
+  const vals = meses.map(m => valores[m]||0);
+  const hi = Math.max.apply(null, vals.concat([0]))*1.15 || 1, lo = Math.min.apply(null, vals.concat([0]));
+  const ticks = ejeY(lo, hi);
+  const a = Math.min(lo, ticks[0]), b = Math.max(hi, ticks[ticks.length-1]);
+  const y = v => T + (b-v)/(b-a)*ph;
+  const banda = pw/meses.length, ancho = Math.min(58, banda*0.45);
+  let s = '<svg viewBox="0 0 '+W+' '+H+'" role="img" preserveAspectRatio="xMidYMid meet">';
+  ticks.forEach(t => {
+    s += '<line class="'+(t===0?"cero":"grid")+'" x1="'+L+'" y1="'+y(t).toFixed(1)+'" x2="'+(W-R)+'" y2="'+y(t).toFixed(1)+'"/>'
+       + '<text class="gy" x="'+(L-8)+'" y="'+(y(t)+3.5).toFixed(1)+'" text-anchor="end">'+fmt(t,dec==null?2:dec)+'</text>';
+  });
+  meses.forEach((m,i) => {
+    const v = valores[m]||0, cx = L + banda*i + banda/2, x = cx-ancho/2;
+    const y0 = y(Math.max(v,0)), h = Math.max(0.8, Math.abs(y(v)-y(0)));
+    s += '<rect x="'+x.toFixed(1)+'" y="'+y0.toFixed(1)+'" width="'+ancho.toFixed(1)+'" height="'+h.toFixed(1)+'" fill="'+color+'">'
+       + '<title>'+mesCorto(m)+" · "+fmt(v,dec==null?2:dec)+"</title></rect>"
+       + '<text class="gval" x="'+cx.toFixed(1)+'" y="'+(y0-6).toFixed(1)+'" text-anchor="middle">'+fmt(v,dec==null?2:dec)+'</text>'
+       + '<text class="gx" x="'+cx.toFixed(1)+'" y="'+(H-B+20)+'" text-anchor="middle">'+mesCorto(m)+'</text>';
+  });
+  s += '<text class="gtit" x="'+L+'" y="'+(H-8)+'">'+esc(sufijo||"")+'</text></svg>';
+  cont.innerHTML = s;
+}
+function leyenda(sel, series, totales){
+  $(sel).innerHTML = series.map(s =>
+    '<span><i style="background:'+s.color+'"></i>'+esc(s.nom)+' <b>'+fmt(totales[s.k]||0)+' €</b></span>').join("");
+}
+function ranking(sel, items, unidad, dec){
+  const cont = $(sel);
+  const u = unidad === undefined ? " €" : (unidad ? " "+unidad : "");
+  const d = dec === undefined ? 2 : dec;
+  const vivos = items.filter(x => Math.abs(x.valor) > 0.005).sort((a,b) => b.valor-a.valor);
+  if(!vivos.length){ cont.innerHTML = '<div class="vacio">Sin datos todavía.</div>'; return; }
+  const gran = vivos.reduce((a,x) => a + x.valor, 0);
+  const max = Math.max.apply(null, vivos.map(x => Math.abs(x.valor)));
+  cont.innerHTML = vivos.map(x =>
+    '<div class="rfila"><div class="nom" title="'+esc(x.nom)+'">'+esc(x.nom)+'</div>'
+    + '<div class="rbar"><i style="width:'+(Math.abs(x.valor)/max*100).toFixed(1)+'%;background:'+x.color+'"></i></div>'
+    + '<div class="imp">'+fmt(x.valor,d)+u+'</div>'
+    + '<div class="pct">'+(gran ? fmt(x.valor/gran*100,1) : "0,0")+'%</div></div>').join("");
+}
+
+function pintar(){ pintarProv(); pintarVall(); pintarVentas(); pintarRatios(); }
+
+document.addEventListener("input", e => {
+  const t = e.target.dataset.t;
+  if(!t) return;
+  const col = (t==="vall" ? VCOLS : t==="ventas" ? VCOLSV : PCOLS).filter(c => c.k === e.target.dataset.k)[0];
+  const v = (col && (col.f==="e" || col.f==="n" || col.f==="p")) ? num(e.target.value) : e.target.value;
+  S[t][e.target.dataset.i][e.target.dataset.k] = v;
+  if(t==="vall") pintarVall(); else if(t==="ventas"){ pintarVentas(); pintarRatios(); } else pintarProv();
+});
+document.addEventListener("click", e => {
+  const q = e.target.dataset.q;
+  if(!q) return;
+  S[q].splice(e.target.dataset.i,1);
+  pintar();
+});
+function addProv(){
+  const o = {origen:"a mano"};
+  PCOLS.forEach(c => o[c.k] = (c.f==="e"||c.f==="p") ? 0 : "");
+  o.fecha = new Date().toISOString().slice(0,10);
+  o.categoria = "🌸 Flores / Producto"; o.formaPago = "Pendiente"; o.iva1pct = 0.21;
+  S.prov.push(o); verTab("prov"); pintar();
+}
+function addVall(){
+  const o = {origen:"a mano", pagado:""};
+  VCOLS.forEach(c => { if(!c.calc) o[c.k] = (c.f==="e"||c.f==="n") ? 0 : ""; });
+  o.fechaFactura = new Date().toISOString().slice(0,10);
+  S.vall.push(o); verTab("vall"); pintar();
+}
+function vaciar(t){
+  if(S[t].length && !confirm("Se borran todas las filas de esta pestaña. ¿Continuar?")) return;
+  S[t] = []; pintar();
+}
+function guardar(){
+  bajar(new Blob([JSON.stringify(S,null,1)],{type:"application/json"}),
+        "buscaflor_gastos_"+new Date().toISOString().slice(0,10)+".json");
+}
+$("#fJson").onchange = async e => {
+  const f = e.target.files[0]; if(!f) return;
+  try{ const d = JSON.parse(await f.text()); S.prov = d.prov||[]; S.vall = d.vall||[]; S.pagos = d.pagos||[];
+    if(d.ventas) S.ventas = d.ventas; if(d.fin) S.fin = d.fin; if(d.familias) S.familias = d.familias;
+    pintar(); }
+  catch(err){ alert("Ese archivo no se pudo abrir."); }
+  e.target.value = "";
+};
+function bajar(blob,nombre){
+  const u = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = u; a.download = nombre; a.click();
+  setTimeout(() => URL.revokeObjectURL(u), 4000);
+}
+
+/* ===================== Excel ===================== */
+function borde(){
+  const c = {style:"thin", color:{argb:BORDE_COL}};
+  return {top:c, bottom:c, left:c, right:c};
+}
+function sty(cel, o){
+  o = o || {};
+  cel.font = {name:"Arial", size:o.size||9, bold:!!o.b, color:{argb:o.col||"FF000000"}};
+  if(o.fill) cel.fill = {type:"pattern", pattern:"solid", fgColor:{argb:o.fill}};
+  cel.alignment = {horizontal:o.al||"left", vertical:"middle", wrapText:!!o.wrap};
+  if(o.nf) cel.numFmt = o.nf;
+  cel.border = borde();
+}
+function nf(f){ return f==="e" ? EUR : f==="n" ? "#,##0" : f==="p" ? "0%" : f==="d" ? "dd/mm/yyyy" : null; }
+function fecha(iso){ return iso ? new Date(iso+"T00:00:00") : null; }
+
+async function excelProv(){
+  if(!S.prov.length) return alert("No hay facturas de proveedores que exportar.");
+  const wb = new ExcelJS.Workbook();
+  wb.creator = "Buscaflor · Centro de Operaciones";
+  const ws = wb.addWorksheet("Registro Proveedores");
+  const n = PCOLS.length;
+  PCOLS.forEach((c,i) => ws.getColumn(i+1).width = c.w);
+
+  ws.mergeCells(1,1,1,n);
+  sty(ws.getCell(1,1), {size:14, b:true, col:"FFFFFFFF", fill:NAVY2, al:"center"});
+  ws.getCell(1,1).value = "🗂️  REGISTRO DE FACTURAS — MÚLTIPLES PROVEEDORES";
+  ws.getRow(1).height = 31.5;
+
+  ws.mergeCells(2,1,2,n);
+  sty(ws.getCell(2,1), {col:"FFFFFFFF", fill:AZUL, al:"center"});
+  ws.getCell(2,1).value = "ROSAS DE BUSCAFLOR LAMEJOR, S.L.  |  CIF: B91821579  |  Actualizado: " + new Date().toLocaleDateString("es-ES");
+  ws.getRow(2).height = 15.75;
+
+  PCOLS.forEach((c,i) => { const x = ws.getCell(3,i+1); x.value = c.t; sty(x,{b:true, col:"FFFFFFFF", fill:AZUL, al:"center", wrap:true}); });
+  ws.getRow(3).height = 27.75;
+
+  const lista = S.prov.slice().sort((a,b) => (a.fecha||"").localeCompare(b.fecha||"") || (a.numero||"").localeCompare(b.numero||""));
+  let f = 4;
+  const ini = f;
+  lista.forEach(x => {
+    const r = ws.getRow(f);
+    PCOLS.forEach((c,i) => {
+      const cel = r.getCell(i+1);
+      cel.value = c.f==="d" ? fecha(x[c.k]) : (c.f==="e"||c.f==="p") ? num(x[c.k]) : (x[c.k]||"");
+      let fill = "FFFFFFFF";
+      if(c.clave) fill = AZULCLARO;
+      else if(c.total) fill = VERDECLARO;
+      else if(c.k==="categoria") fill = COLOR_CAT[x.categoria] || "FFFFFFFF";
+      sty(cel,{b:!!(c.clave||c.total), fill:fill, al:c.a, nf:nf(c.f)});
+    });
+    ws.getRow(f).height = 27.75;
+    f++;
+  });
+
+  const rt = ws.getRow(f);
+  rt.getCell(1).value = "▶  TOTALES";
+  sty(rt.getCell(1), {b:true, col:"FFFFFFFF", fill:NAVY2, al:"right"});
+  for(let i=2;i<=n;i++){
+    const c = PCOLS[i-1], cel = rt.getCell(i);
+    if(c.f === "e"){
+      const L = ws.getColumn(i).letter;
+      cel.value = {formula:"SUM("+L+ini+":"+L+(f-1)+")"};
+      sty(cel,{b:true, col:"FFFFFFFF", fill:AZUL, al:"right", nf:EUR});
+    } else sty(cel,{b:true, col:"FFFFFFFF", fill:NAVY2, al:"center"});
+  }
+  ws.getRow(f).height = 27.75;
+  ws.views = [{state:"frozen", ySplit:3}];
+
+  bajar(new Blob([await wb.xlsx.writeBuffer()],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}),
+        "Facturas_Proveedores_global_"+new Date().getFullYear()+"_CIF.xlsx");
+}
+
+async function excelVall(){
+  if(!S.vall.length) return alert("No hay facturas de Vallinoto que exportar.");
+  const wb = new ExcelJS.Workbook();
+  wb.creator = "Buscaflor · Centro de Operaciones";
+  const ws = wb.addWorksheet("Facturas Vallinoto");
+  const n = VCOLS.length;
+  VCOLS.forEach((c,i) => ws.getColumn(i+1).width = c.w);
+
+  const lista = S.vall.slice().sort((a,b) => (a.fechaFactura||"").localeCompare(b.fechaFactura||"") || (a.numero||"").localeCompare(b.numero||""));
+  const meses = [];
+  lista.forEach(x => { const m = mesDe(x.fechaFactura); if(meses.indexOf(m)<0) meses.push(m); });
+  meses.sort();
+  const rango = meses.length ? nombreMes(meses[0]).split(" ")[0].charAt(0)+nombreMes(meses[0]).split(" ")[0].slice(1).toLowerCase()
+              + (meses.length>1 ? "–"+nombreMes(meses[meses.length-1]).split(" ")[0].charAt(0)+nombreMes(meses[meses.length-1]).split(" ")[0].slice(1).toLowerCase() : "")
+              + " " + nombreMes(meses[meses.length-1]).split(" ")[1] : "";
+
+  ws.mergeCells(1,1,1,n);
+  sty(ws.getCell(1,1), {size:13, b:true, col:NAVY, fill:AZULPAL, al:"left"});
+  ws.getCell(1,1).value = "FACTURAS VALLINOTO CARGO — BUSCAFLOR LAMEJOR S.L. | " + rango;
+  ws.getRow(1).height = 27.75;
+
+  VCOLS.forEach((c,i) => { const x = ws.getCell(2,i+1); x.value = c.t; sty(x,{b:true, col:"FFFFFFFF", fill:NAVY, al:"center", wrap:true}); });
+  ws.getRow(2).height = 42;
+
+  let f = 3;
+  const filasSub = [];
+  meses.forEach(m => {
+    ws.mergeCells(f,1,f,n);
+    sty(ws.getCell(f,1), {size:10, b:true, col:"FFFFFFFF", fill:AZUL, al:"left"});
+    ws.getCell(f,1).value = "▶  " + nombreMes(m);
+    ws.getRow(f).height = 15.75;
+    f++;
+    const ini = f;
+    lista.filter(x => mesDe(x.fechaFactura)===m).forEach(x => {
+      const d = derV(x), r = ws.getRow(f);
+      VCOLS.forEach((c,i) => {
+        const cel = r.getCell(i+1);
+        if(c.k === "baseExenta")      cel.value = {formula:"+R"+f+"+M"+f+"+N"+f, result:d.exenta};
+        else if(c.k === "baseIva")    cel.value = {formula:"+X"+f+"-Y"+f, result:d.baseIva};
+        else if(c.f === "d")          cel.value = fecha(x[c.k]);
+        else if(c.f === "e" || c.f === "n") cel.value = num(x[c.k]) || (num(x[c.k])===0 && c.k==="bultos" ? 0 : num(x[c.k]));
+        else                          cel.value = x[c.k] || "";
+        sty(cel,{fill:AZULCLARO, al:c.a, nf:nf(c.f)});
+      });
+      ws.getRow(f).height = 15.75;
+      f++;
+    });
+    ws.mergeCells(f,1,f,9);
+    sty(ws.getCell(f,1), {b:true, col:NAVY, fill:AZULSUB, al:"center"});
+    ws.getCell(f,1).value = "SUBTOTAL " + nombreMes(m).split(" ")[0];
+    for(let i=2;i<=9;i++) sty(ws.getCell(f,i), {b:true, col:NAVY, fill:AZULSUB, al:"center"});
+    for(let i=10;i<=n;i++){
+      const c = VCOLS[i-1], cel = ws.getCell(f,i);
+      if(c.f === "e" || c.f === "n"){
+        const L = ws.getColumn(i).letter;
+        cel.value = {formula:"SUM("+L+ini+":"+L+(f-1)+")"};
+      }
+      sty(cel,{b:true, col:NAVY, fill:AZULSUB, al:c.a, nf:nf(c.f)});
+    }
+    filasSub.push(f);
+    f += 2;
+  });
+
+  ws.mergeCells(f,1,f,9);
+  sty(ws.getCell(f,1), {size:10, b:true, col:"FFFFFFFF", fill:NAVY, al:"center"});
+  ws.getCell(f,1).value = "TOTAL GENERAL";
+  for(let i=2;i<=9;i++) sty(ws.getCell(f,i), {size:10, b:true, col:"FFFFFFFF", fill:NAVY, al:"center"});
+  for(let i=10;i<=n;i++){
+    const c = VCOLS[i-1], cel = ws.getCell(f,i);
+    if(c.f === "e" || c.f === "n"){
+      const L = ws.getColumn(i).letter;
+      cel.value = {formula: filasSub.map(x => L+x).join("+")};
+    }
+    sty(cel,{size:10, b:true, col:"FFFFFFFF", fill:NAVY, al:c.a, nf:nf(c.f)});
+  }
+  ws.getRow(f).height = 15.75;
+  ws.views = [{state:"frozen", ySplit:2}];
+
+  bajar(new Blob([await wb.xlsx.writeBuffer()],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}),
+        "Facturas_Vallinoto_"+(meses[0]||"").replace("-","_")+"_a_"+(meses[meses.length-1]||"").replace("-","_")+".xlsx");
+}
+
+/* ===================== Releer los propios Excel ===================== */
+function celVal(ws,r,c){
+  const v = ws.getCell(r,c).value;
+  if(v && typeof v === "object"){
+    if(v instanceof Date) return v;
+    if(v.result !== undefined) return v.result;
+    if(v.richText) return v.richText.map(x => x.text).join("");
+    if(v.text !== undefined) return v.text;
+    return "";
+  }
+  return v == null ? "" : v;
+}
+function isoDe(v){
+  if(v instanceof Date) return v.getUTCFullYear()+"-"+String(v.getUTCMonth()+1).padStart(2,"0")+"-"+String(v.getUTCDate()).padStart(2,"0");
+  const s = String(v||"");
+  const m = s.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if(m) return m[3]+"-"+m[2].padStart(2,"0")+"-"+m[1].padStart(2,"0");
+  return /^\d{4}-\d{2}-\d{2}/.test(s) ? s.slice(0,10) : "";
+}
+function txtVal(v){ const s = String(v==null?"":v).trim(); return s.charAt(0)==="=" ? "" : s; }
+function saltarFila(a){
+  const s = String(a||"").trim();
+  return !s || s.charAt(0)==="▶" || s.indexOf("SUBTOTAL")===0 || s.indexOf("TOTAL")===0;
+}
+function claveDe(o,tipo){ return (o.numero||"")+"|"+(tipo==="vall" ? (o.fechaFactura||"") : (o.fecha||"")); }
+
+async function leerLibro(file){
+  const wb = new ExcelJS.Workbook();
+  await wb.xlsx.load(await file.arrayBuffer());
+  let nv = 0, np = 0, rep = 0;
+  wb.worksheets.forEach(ws => {
+    const esVall = String(celVal(ws,2,1)).indexOf("Nº Factura")===0 && String(celVal(ws,2,4)).indexOf("Expediente")===0;
+    const esProv = String(celVal(ws,3,1)).indexOf("Nº Factura")===0 && String(celVal(ws,3,4)).indexOf("CIF")===0;
+    if(!esVall && !esProv) return;
+    const tipo = esVall ? "vall" : "prov";
+    const cols = esVall ? VCOLS : PCOLS;
+    const vistos = {};
+    S[tipo].forEach(x => vistos[claveDe(x,tipo)] = true);
+    for(let r = (esVall?3:4); r <= ws.rowCount; r++){
+      if(saltarFila(celVal(ws,r,1))) continue;
+      const o = {origen:file.name};
+      let col = 0;
+      cols.forEach(c => {
+        col++;
+        if(c.calc) return;
+        const v = celVal(ws,r,col);
+        o[c.k] = c.f==="d" ? isoDe(v) : (c.f==="e"||c.f==="n"||c.f==="p") ? num(v) : txtVal(v);
+      });
+      if(!o.numero) continue;
+      const k = claveDe(o,tipo);
+      if(vistos[k]){ rep++; continue; }
+      vistos[k] = true;
+      S[tipo].push(o);
+      if(esVall) nv++; else np++;
+    }
+  });
+  if(!nv && !np && !rep) throw new Error("no reconozco este libro");
+  return (nv? nv+" Vallinoto ":"") + (np? np+" proveedor ":"") + (rep? "· "+rep+" ya estaban":"");
+}
+
+/* ===================== Datos iniciales ===================== */
+(function cargarIniciales(){
+  const el = document.getElementById("datosIniciales");
+  if(!el) return;
+  try{
+    const d = JSON.parse(el.textContent);
+    const expandir = (keys, filas) => filas.map(f => {
+      const o = {origen:"carga inicial"};
+      keys.forEach((k,i) => o[k] = f[i]);
+      return o;
+    });
+    S.vall = expandir(d.vk, d.v);
+    S.prov = expandir(d.pk, d.p);
+    S.pagos = d.pagos || [];
+    S.ventas = (d.ventas||[]).map(r => ({mes:r[0], importe:r[1], lineas:r[2], total:r[3]||0, pagado:r[4]||0, pendiente:r[5]||0, informe:r[6]||""}));
+    S.familias = d.familias || {};
+    S.fin = d.fin || null;
+  }catch(e){}
+})();
+
+document.getElementById("fechaPago").value = new Date().toISOString().slice(0,10);
+estadoClave();
+pintar();
+</script>
+</body>
+</html>
