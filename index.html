@@ -683,10 +683,14 @@ async function procesar(files){
           if(!dup){ S.intl.push(nueva); if(d.pais) FINCA_PAIS[fin] = String(d.pais).trim(); ni++; }
         }
         else if(d.tipo === "transferencia_intl"){
-          S.transf.push({fecha:String(d.fecha||"").slice(0,10), beneficiario:String(d.beneficiario||"").trim(),
-                         proveedor:String(d.proveedor||"").trim(), pais:String(d.pais||"").trim(),
-                         importe:num(d.importe), liquido:num(d.liquido||d.importe), concepto:String(d.concepto||"").trim()});
+          const tr = {fecha:String(d.fecha||"").slice(0,10), beneficiario:String(d.beneficiario||"").trim(),
+                      proveedor:String(d.proveedor||"").trim(), pais:String(d.pais||"").trim(),
+                      importe:num(d.importe), liquido:num(d.liquido||d.importe), concepto:String(d.concepto||"").trim()};
+          S.transf.push(tr);
           nti++;
+          const r = aplicarTransfIntl(tr);
+          if(r.aviso) avisosIntl.push(r.aviso);
+          r.pagadas.forEach(x => nuevasPagadas.push(x));
         }
         else if(d.tipo === "vallinoto"){ S.vall.push(normVall(d, f.name)); nv++; }
         else { S.prov.push(normProv(d, f.name)); np++; }
@@ -863,6 +867,53 @@ function pintarIntl(){
   $("#detFinca").textContent = S.fincaSel ? "finca: "+S.fincaSel : "todas las fincas";
   $("#detTransf").textContent = S.transf.length+" transferencia(s) registradas";
 }
+/* Aplica una transferencia internacional a las facturas que cita su concepto.
+   Si el importe cuadra, las marca pagadas. Si no cuadra, no toca nada y avisa,
+   para que el descuadre no quede escondido. */
+function aplicarTransfIntl(tr){
+  const norm = s => String(s==null?"":s).replace(/[^\d]/g,"");
+  const finca = tr.proveedor || "";
+  const dianas = S.intl.filter(x => !finca || (x.finca||"").toLowerCase().split(" ")[0] === finca.toLowerCase().split(" ")[0]);
+  const base = dianas.length ? dianas : S.intl;
+  const nums = (String(tr.concepto||"").match(/\d{4,}/g) || []);
+  if(!nums.length) return {pagadas:[], aviso:{t:"pago sin conciliar", msg:"La transferencia de "+fmt(tr.importe)+" USD no cita facturas en el concepto, así que la he registrado pero no he marcado nada. Usa el botón de registrar pago si quieres saldarlas."}};
+
+  /* facturas objetivo: rango "X a Y" o lista de números sueltos */
+  let objetivo = [];
+  if(/\ba\b|\bal\b|\-|hasta/i.test(tr.concepto||"") && nums.length >= 2){
+    const lo = parseInt(nums[0],10), hi = parseInt(nums[nums.length-1],10);
+    objetivo = base.filter(x => { const n = parseInt(norm(x.numero),10); return n>=lo && n<=hi; });
+  } else {
+    objetivo = base.filter(x => nums.indexOf(norm(x.numero)) >= 0);
+  }
+  if(!objetivo.length) return {pagadas:[], aviso:{t:"pago sin conciliar", msg:"La transferencia de "+fmt(tr.importe)+" USD cita "+nums.join(", ")+", pero no encuentro esas facturas cargadas. Suelta antes el estado de cuenta de "+(finca||"la finca")+"."}};
+
+  const suma = objetivo.reduce((a,x) => a + num(x.importe), 0);
+  const dif = suma - num(tr.importe);
+  const yaPagadas = objetivo.filter(x => esPagada(x.estado));
+
+  /* doble cobro: alguna de las citadas ya estaba pagada */
+  if(yaPagadas.length){
+    return {pagadas:[], aviso:{t:"posible doble pago", msg:"Esta transferencia incluye "+yaPagadas.length+" factura(s) que ya constaban pagadas ("+yaPagadas.map(x=>"#"+x.numero).join(", ")+"). No he marcado nada. Revisa que no estés pagando dos veces."}};
+  }
+
+  if(Math.abs(dif) <= 0.5){
+    /* cuadra: marcar todas como pagadas */
+    const ref = tr.concepto || (finca+" "+tr.fecha);
+    const pagadas = objetivo.map(x => {
+      x.estado = "PAGADA"; x.saldo = 0; x.fechaPago = tr.fecha; x.refPago = ref;
+      return {finca:x.finca, numero:x.numero, importe:num(x.importe)};
+    });
+    return {pagadas:pagadas, aviso:null};
+  }
+
+  /* no cuadra: no tocar, avisar del descuadre */
+  return {pagadas:[], aviso:{t:"descuadre de pago",
+    msg:"Tu transferencia de "+fmt(tr.importe)+" USD ("+tr.concepto+") cubre facturas por "+fmt(suma)+" USD. "
+      + "Hay "+fmt(Math.abs(dif))+" USD de diferencia — "+(dif>0?"pagaste de menos o falta descontar un abono/descuento":"pagaste de más")+". "
+      + "No he marcado nada; usa el botón de registrar pago si aun así quieres saldarlas."}};
+}
+
 /* Verifica un estado de cuenta recién cargado contra lo que ya sabemos:
    1) que las facturas que la finca da por cobradas coinciden con transferencias que enviaste,
    2) que no intenten cobrar dos veces una factura ya saldada,
