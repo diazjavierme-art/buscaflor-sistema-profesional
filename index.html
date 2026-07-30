@@ -554,7 +554,7 @@ const PROMPT =
 'Si es transferencia:\n'+
 '{"documentos":[{"tipo":"transferencia","fecha":"AAAA-MM-DD","beneficiario":"","importe":0,"concepto":"","facturas":[]}]}\n'+
 '- fecha: fecha valor u orden del pago. importe: importe total enviado, en positivo.\n'+
-'- facturas: lista con todos los números de factura que se citen en el concepto o en el detalle, tal cual aparecen. Si no cita ninguno, deja la lista vacía.\n\n'+'Si es finca:\n'+'{"documentos":[{"tipo":"finca","finca":"","pais":"","fecha":"AAAA-MM-DD","numero":"","awb":"","importe":0}]}\n'+'- finca: nombre del proveedor del exterior tal como lo conoces (Benchmark Growers, Rosaprima, Floricola Rosalinda, Monterosas, Luz of Roses, Natuflor, Much Flowers, Kuehne Nagel, Native (Calinama), Grupo Cantiza, Floranrosa, The Farm Direct, Plazoleta Bazzani).\n'+'- pais: Ecuador, Colombia o Panama. numero: número de factura. awb: guía aérea o referencia de paquete si aparece. importe: total en USD.\n\n'+'Si es estado_cuenta:\n'+'{"documentos":[{"tipo":"estado_cuenta","finca":"","pais":"","lineas":[{"fecha":"AAAA-MM-DD","numero":"","awb":"","importe":0,"vencimiento":"AAAA-MM-DD","status":""}]}]}\n'+'- finca: el proveedor del estado de cuenta (el logo o título; Logike, Saftec, etc.). pais: Ecuador, Colombia o Panama.\n'+'- lineas: UNA por cada guía o factura de la tabla. Ignora las filas de TRANSFERENCIA, TOTAL VENCIDO y TOTAL PENDIENTE.\n'+'- fecha: la fecha de factura de esa línea. numero: el número de factura (# Fact). awb: el número de guía aérea. importe: el total de esa guía en USD.\n'+'- vencimiento: la fecha de vencimiento de esa línea. status: PAGADO, VENCIDO, CORRIENTE o PENDIENTE tal cual aparezca.\n\n'+'Si es transferencia_intl:\n'+'{"documentos":[{"tipo":"transferencia_intl","fecha":"AAAA-MM-DD","beneficiario":"","proveedor":"","pais":"","importe":0,"liquido":0,"concepto":""}]}\n'+'- beneficiario: a quién se envía el dinero. proveedor: la finca a la que corresponde. importe: enviado en USD. liquido: importe más comisión si se indica. concepto: las facturas o el periodo que se paga.\n\n'+
+'- facturas: lista con todos los números de factura que se citen en el concepto o en el detalle, tal cual aparecen. Si no cita ninguno, deja la lista vacía.\n\n'+'Si es finca:\n'+'{"documentos":[{"tipo":"finca","finca":"","pais":"","fecha":"AAAA-MM-DD","numero":"","awb":"","importe":0}]}\n'+'- finca: nombre del proveedor del exterior tal como lo conoces (Benchmark Growers, Rosaprima, Floricola Rosalinda, Monterosas, Luz of Roses, Natuflor, Much Flowers, Kuehne Nagel, Native (Calinama), Grupo Cantiza, Floranrosa, The Farm Direct, Plazoleta Bazzani).\n'+'- pais: Ecuador, Colombia o Panama. numero: número de factura. awb: guía aérea o referencia de paquete si aparece. importe: total en USD.\n\n'+'Si es estado_cuenta:\n'+'{"documentos":[{"tipo":"estado_cuenta","finca":"","pais":"","lineas":[{"fecha":"AAAA-MM-DD","numero":"","awb":"","importe":0,"vencimiento":"AAAA-MM-DD","status":""}]}]}\n'+'- finca: el proveedor del estado de cuenta (el logo o título; Logike, Saftec, etc.). pais: Ecuador, Colombia o Panama.\n'+'- lineas: UNA por cada guía o factura de la tabla. Ignora las filas de TRANSFERENCIA, TOTAL VENCIDO y TOTAL PENDIENTE.\n'+'- fecha: la fecha de factura de esa línea. numero: el número de factura (# Fact). awb: el número de guía aérea. importe: el total de esa guía en USD.\n'+'- vencimiento: la fecha de vencimiento de esa línea. status: PAGADO, VENCIDO, CORRIENTE o PENDIENTE tal cual aparezca.\n\n'+'Si es transferencia_intl:\n'+'{"documentos":[{"tipo":"transferencia_intl","fecha":"AAAA-MM-DD","beneficiario":"","proveedor":"","pais":"","importe":0,"liquido":0,"concepto":""}]}\n'+'- beneficiario: a quién se envía el dinero. proveedor: la finca a la que corresponde. importe: enviado en USD. liquido: importe más comisión si se indica.\n'+'- concepto: cópialo TAL CUAL del justificante (campo Concepto o Motivo del pago). Puede citar números de factura ("pago 15997 a 16469") o una fecha de corte ("PAGO HASTA EL DIA 26 05 2026"). No lo interpretes, cópialo literal.\n\n'+
 'Si es vallinoto:\n'+
 '{"documentos":[{"tipo":"vallinoto","numero":"","fechaFactura":"AAAA-MM-DD","fechaLlegada":"AAAA-MM-DD","expediente":"","sReferencia":"","nDeclaracion":"","manifiesto":"","proveedor":"","transporte":"","bultos":0,"pesoBruto":0,"pesoNeto":0,"plastico":0,"ivaAduana":0,"comisionOficial":0,"entregaImport":0,"thc":0,"tasasFito":0,"paletizacion":0,"handlingDoc":0,"manipPerec":0,"tasaMantServicio":0,"otrosConceptos":0,"importeBase":0,"iva21":0,"total":0}]}\n'+
 '- numero tal cual, por ejemplo "V 2604344". Las notas de abono empiezan por C y llevan importes negativos: consérvalos negativos.\n'+
@@ -876,7 +876,30 @@ function aplicarTransfIntl(tr){
   const dianas = S.intl.filter(x => !finca || (x.finca||"").toLowerCase().split(" ")[0] === finca.toLowerCase().split(" ")[0]);
   const base = dianas.length ? dianas : S.intl;
   const nums = (String(tr.concepto||"").match(/\d{4,}/g) || []);
-  if(!nums.length) return {pagadas:[], aviso:{t:"pago sin conciliar", msg:"La transferencia de "+fmt(tr.importe)+" USD no cita facturas en el concepto, así que la he registrado pero no he marcado nada. Usa el botón de registrar pago si quieres saldarlas."}};
+
+  /* ¿el concepto es un pago POR FECHA? "PAGO HASTA EL DIA 26 05 2026", "hasta 26/05/2026", etc.
+     En ese caso salda todo lo pendiente de la finca con fecha de factura igual o anterior. */
+  const mFecha = String(tr.concepto||"").match(/hasta\D*(\d{1,2})\D+(\d{1,2})\D+(\d{2,4})/i);
+  if(mFecha){
+    let dd = mFecha[1].padStart(2,"0"), mm = mFecha[2].padStart(2,"0"), yy = mFecha[3];
+    if(yy.length === 2) yy = "20"+yy;
+    const corte = yy+"-"+mm+"-"+dd;
+    const hasta = base.filter(x => (x.fecha||"") && (x.fecha||"") <= corte && num(x.saldo) > 0.01);
+    if(!hasta.length) return {pagadas:[], aviso:{t:"pago sin conciliar", msg:"La transferencia de "+fmt(tr.importe)+" USD paga hasta el "+dd+"/"+mm+"/"+yy+", pero no hay facturas pendientes de "+(finca||"la finca")+" con esa fecha o anterior. Suelta antes el estado de cuenta."}};
+    const suma = hasta.reduce((a,x) => a + num(x.saldo), 0);
+    const dif = suma - num(tr.importe);
+    if(Math.abs(dif) <= 0.5){
+      const ref = tr.concepto || (finca+" "+tr.fecha);
+      const pagadas = hasta.map(x => { x.estado = "PAGADA"; x.saldo = 0; x.fechaPago = tr.fecha; x.refPago = ref;
+        return {finca:x.finca, numero:x.numero, importe:num(x.importe)}; });
+      return {pagadas:pagadas, aviso:null};
+    }
+    return {pagadas:[], aviso:{t:"descuadre de pago",
+      msg:"Tu transferencia de "+fmt(tr.importe)+" USD paga hasta el "+dd+"/"+mm+"/"+yy+", y lo pendiente de "+(finca||"la finca")+" hasta esa fecha suma "+fmt(suma)+" USD. "
+        + "Hay "+fmt(Math.abs(dif))+" USD de diferencia — "+(dif>0?"pagaste de menos o falta descontar un abono/descuento":"pagaste de más")+". No he marcado nada; usa el botón de registrar pago si aun así quieres saldarlas."}};
+  }
+
+  if(!nums.length) return {pagadas:[], aviso:{t:"pago sin conciliar", msg:"La transferencia de "+fmt(tr.importe)+" USD no cita facturas ni una fecha de corte en el concepto, así que la he registrado pero no he marcado nada. Usa el botón de registrar pago si quieres saldarlas."}};
 
   /* facturas objetivo: rango "X a Y" o lista de números sueltos */
   let objetivo = [];
