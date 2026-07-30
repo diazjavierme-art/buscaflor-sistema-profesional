@@ -626,6 +626,8 @@ async function procesar(files){
       if(!docs.length) throw new Error("no se reconoció ninguna factura");
       let nv = 0, np = 0;
       let nt = 0, nz = 0, ni = 0, nti = 0;
+      const nuevasPagadas = [];
+      const avisosIntl = [];
       docs.forEach(d => {
         if(d.tipo === "transferencia"){
           const tr = {id:"t"+Date.now()+Math.floor(Math.random()*1000), fecha:String(d.fecha||"").slice(0,10),
@@ -648,15 +650,26 @@ async function procesar(files){
         else if(d.tipo === "estado_cuenta"){
           const fin = String(d.finca||"").trim();
           if(d.pais) FINCA_PAIS[fin] = String(d.pais).trim();
-          (d.lineas||[]).forEach(l => {
+          const lineas = d.lineas || [];
+          verificarEstado(fin, lineas).forEach(a => avisosIntl.push(a));   /* controles antes de tocar nada */
+          lineas.forEach(l => {
             const numf = String(l.numero||"").trim();
-            const dup = S.intl.some(x => x.finca===fin && x.numero===numf && numf);
-            if(dup) return;
-            const pagada = /PAGAD/i.test(l.status||"");
+            const pagada = /PAGAD|CANCEL|SALDAD/i.test(l.status||"");
+            const est = (l.status||"PENDIENTE").toUpperCase().trim();
+            const prev = S.intl.filter(x => x.finca===fin && x.numero===numf && numf)[0];
+            if(prev){
+              if(pagada && !esPagada(prev.estado)){
+                prev.estado = est; prev.saldo = 0;
+                nuevasPagadas.push({finca:fin, numero:numf, importe:num(prev.importe)});
+              } else if(est !== prev.estado){
+                prev.estado = est; prev.venc = String(l.vencimiento||prev.venc||"").slice(0,10);
+                if(pagada) prev.saldo = 0;
+              }
+              return;
+            }
             S.intl.push({finca:fin, fecha:String(l.fecha||"").slice(0,10), numero:numf,
               awb:String(l.awb||"").trim(), importe:num(l.importe),
-              estado:(l.status||"PENDIENTE").toUpperCase().trim(),
-              venc:String(l.vencimiento||"").slice(0,10),
+              estado:est, venc:String(l.vencimiento||"").slice(0,10),
               fechaPago:"", refPago:"", saldo:pagada?0:num(l.importe), origen:f.name});
             ni++;
           });
@@ -683,6 +696,15 @@ async function procesar(files){
                       + (ni? ni+" factura(s) de finca ":"") + (nti? nti+" transferencia intl":"");
       if(ni||nti) verTab("intl"); else if(nt) verTab("vall"); else if(nz) verTab("vent");
       est.className = "est bien";
+      if(nuevasPagadas.length){
+        const tot = nuevasPagadas.reduce((a,x) => a + x.importe, 0);
+        const det = nuevasPagadas.map(x => x.finca+" #"+x.numero+" ("+fmt(x.importe)+" USD)").join("\n");
+        alert("El estado de cuenta confirma "+nuevasPagadas.length+" factura(s) que han pasado a PAGADA, "+fmt(tot)+" USD:\n\n"+det);
+      }
+      if(avisosIntl.length){
+        const det = avisosIntl.map(a => "• ["+a.t.toUpperCase()+"] "+a.msg).join("\n\n");
+        alert("REVISA ESTO antes de dar nada por bueno:\n\n"+det);
+      }
       pintar();
     }catch(err){
       est.textContent = "no se pudo leer · "+err.message;
@@ -802,18 +824,22 @@ function pintarIntl(){
     '<button class="btn mini'+(S.fincaSel?"":" solido")+'" data-finca="">Todas</button>'
     + fincas.map(nm => '<button class="btn mini'+(S.fincaSel===nm?" solido":"")+'" data-finca="'+esc(nm)+'">'+esc(nm)+" ("+porFinca[nm].n+")</button>").join("");
 
-  $("#hIntl").innerHTML = "<tr><th>Finca</th>" + ICOLS.map(c => '<th style="min-width:'+Math.round(c.w*7)+'px">'+c.t+"</th>").join("") + "<th></th></tr>";
+  $("#hIntl").innerHTML = "<tr><th>Finca</th>" + ICOLS.map(c => '<th style="min-width:'+Math.round(c.w*7)+'px">'+c.t+"</th>").join("") + '<th style="min-width:98px">Saldo acum.</th><th></th></tr>';
   const lista = S.intl.map((f,i) => ({f:f,i:i}))
     .filter(o => !S.fincaSel || o.f.finca===S.fincaSel)
     .sort((a,b) => (a.f.finca||"").localeCompare(b.f.finca||"") || (a.f.fecha||"").localeCompare(b.f.fecha||""));
+  let acum = 0, fincaAcum = null;
   $("#bIntl").innerHTML = lista.length ? lista.map(o => {
     const f = o.f, i = o.i, pag = esPagada(f.estado), vivo = num(f.saldo) > 0.01;
+    if(f.finca !== fincaAcum){ acum = 0; fincaAcum = f.finca; }   /* el acumulado se reinicia en cada finca */
+    acum += num(f.saldo);
     return "<tr><td class=\"c\"><input value=\""+esc(f.finca)+"\" readonly tabindex=\"-1\" style=\"color:var(--apagado)\"></td>"
       + ICOLS.map(c => c.k==="estado"
           ? '<td class="c"><input data-t="intl" data-i="'+i+'" data-k="estado" value="'+esc(f.estado)+'" style="color:'+(pag?"var(--verde)":vivo?"var(--alerta)":"inherit")+'"></td>'
           : celda("intl", i, c, f[c.k])).join("")
+      + '<td class="calc" style="color:var(--apagado)">'+fmt(acum)+'</td>'
       + '<td><button class="quitar" data-q="intl" data-i="'+i+'">\u00d7</button></td></tr>';
-  }).join("") : '<tr><td colspan="'+(ICOLS.length+2)+'" class="vacio">Sin facturas. Suelta el Excel de estados de cuenta o facturas sueltas.</td></tr>';
+  }).join("") : '<tr><td colspan="'+(ICOLS.length+3)+'" class="vacio">Sin facturas. Suelta el Excel de estados de cuenta o facturas sueltas.</td></tr>';
 
   $("#hTransf").innerHTML = "<tr>" + TCOLS.map(c => '<th style="min-width:'+Math.round(c.w*7)+'px">'+c.t+"</th>").join("") + "<th></th></tr>";
   const tr = S.transf.map((t,i) => ({t:t,i:i})).sort((a,b) => (b.t.fecha||"").localeCompare(a.t.fecha||""));
@@ -837,6 +863,53 @@ function pintarIntl(){
   $("#detFinca").textContent = S.fincaSel ? "finca: "+S.fincaSel : "todas las fincas";
   $("#detTransf").textContent = S.transf.length+" transferencia(s) registradas";
 }
+/* Verifica un estado de cuenta recién cargado contra lo que ya sabemos:
+   1) que las facturas que la finca da por cobradas coinciden con transferencias que enviaste,
+   2) que no intenten cobrar dos veces una factura ya saldada,
+   3) que el importe de cada transferencia cuadre con las facturas que cita su concepto. */
+function verificarEstado(finca, lineasNuevas){
+  const avisos = [];
+  const norm = s => String(s==null?"":s).replace(/[^\d]/g,"");
+  /* transferencias de esta finca y las facturas que citan en su concepto */
+  const trFinca = S.transf.filter(t =>
+    (t.proveedor||"").toLowerCase().includes(finca.toLowerCase().split(" ")[0]) ||
+    (t.beneficiario||"").toLowerCase().includes(finca.toLowerCase().split(" ")[0]));
+
+  lineasNuevas.forEach(l => {
+    const numf = norm(l.numero), pagada = /PAGAD|CANCEL|SALDAD/i.test(l.status||"");
+    const prev = S.intl.filter(x => (x.finca||"")===finca && norm(x.numero)===numf)[0];
+    /* doble cobro: ya la teníamos saldada y vuelve a aparecer como cargo con saldo vivo */
+    if(prev && esPagada(prev.estado) && !pagada && num(l.importe) > 0.01){
+      avisos.push({t:"doble cobro", msg:"La factura #"+l.numero+" ya constaba pagada y el estado nuevo la trae con saldo "+fmt(l.importe)+" USD. Revisa que no la cobren dos veces."});
+    }
+  });
+
+  /* cada transferencia: ¿su importe cuadra con las facturas que cita? */
+  trFinca.forEach(t => {
+    const citadas = (String(t.concepto||"").match(/\d{4,}/g) || []);
+    if(citadas.length < 1) return;
+    /* si el concepto cita un rango "X a Y", tomamos las facturas del estado entre esos números */
+    let esperado = 0, cuales = [];
+    if(/\ba\b|\-|\bal\b/.test(t.concepto||"") && citadas.length >= 2){
+      const lo = parseInt(citadas[0],10), hi = parseInt(citadas[citadas.length-1],10);
+      lineasNuevas.concat(S.intl.filter(x=>x.finca===finca)).forEach(x => {
+        const nn = parseInt(norm(x.numero),10);
+        if(nn>=lo && nn<=hi && cuales.indexOf(x.numero)<0){ cuales.push(x.numero); esperado += num(x.importe); }
+      });
+    } else {
+      citadas.forEach(c => {
+        const x = lineasNuevas.concat(S.intl.filter(y=>y.finca===finca)).filter(y => norm(y.numero)===norm(c))[0];
+        if(x && cuales.indexOf(x.numero)<0){ cuales.push(x.numero); esperado += num(x.importe); }
+      });
+    }
+    const dif = esperado - num(t.importe);
+    if(cuales.length && Math.abs(dif) > 0.5){
+      avisos.push({t:"descuadre de pago", msg:"Tu transferencia de "+fmt(t.importe)+" USD ("+ (t.concepto||"") +") cubre facturas por "+fmt(esperado)+" USD. Hay "+fmt(Math.abs(dif))+" USD de diferencia — "+(dif>0?"pagaste de menos o falta descontar un abono/descuento":"pagaste de más")+"."});
+    }
+  });
+  return avisos;
+}
+
 document.addEventListener("click", e => {
   const nm = e.target.dataset.finca;
   if(nm === undefined) return;
@@ -1774,26 +1847,26 @@ async function excelIntl(){
   for(let i=1;i<=7;i++) sty(rt.getCell(i),{b:true,col:"FFFFFFFF",fill:NAVY2,al:i===1?"left":"right",nf:i===6?"#,##0":(i>=3?(i===7?EUR:USD):null)});
 
   /* una hoja por finca */
-  const COLS = ["FECHA FACT.","Nº FACT.","AWB / REF.","IMPORTE USD","ESTADO","FECHA PAGO","REF. PAGO","SALDO USD"];
+  const COLS = ["FECHA FACT.","Nº FACT.","AWB / REF.","IMPORTE USD","ESTADO","VENCE","FECHA PAGO","REF. PAGO","SALDO USD"];
   orden.forEach(nm => {
     const ws = wb.addWorksheet(nm.replace(/[\\\/\*\?\[\]:]/g,"").slice(0,31));
-    [13,17,17,13,20,13,20,13].forEach((w,i) => ws.getColumn(i+1).width = w);
-    titulo(ws,8,nm.toUpperCase()+"  ·  "+(fincas[nm].pais||"")+"  ·  PENDIENTE "+fmt(fincas[nm].sal)+" USD");
+    [13,17,17,13,18,12,12,18,13].forEach((w,i) => ws.getColumn(i+1).width = w);
+    titulo(ws,9,nm.toUpperCase()+"  ·  "+(fincas[nm].pais||"")+"  ·  PENDIENTE "+fmt(fincas[nm].sal)+" USD");
     heads(ws,3,COLS);
     const g = S.intl.filter(f => (f.finca||"?")===nm).sort((a,b) => (a.fecha||"").localeCompare(b.fecha||""));
     let f = 4; const i0 = f;
     g.forEach(x => { const r = ws.getRow(f);
       r.getCell(1).value = fecha(x.fecha); r.getCell(2).value = x.numero; r.getCell(3).value = x.awb;
-      r.getCell(4).value = num(x.importe); r.getCell(5).value = x.estado;
-      r.getCell(6).value = fecha(x.fechaPago); r.getCell(7).value = x.refPago; r.getCell(8).value = num(x.saldo);
+      r.getCell(4).value = num(x.importe); r.getCell(5).value = x.estado; r.getCell(6).value = fecha(x.venc);
+      r.getCell(7).value = fecha(x.fechaPago); r.getCell(8).value = x.refPago; r.getCell(9).value = num(x.saldo);
       const fill = esPagada(x.estado) ? "FFEFF8F3" : (num(x.saldo)>0.01 ? "FFFDF6EC" : "FFFFFFFF");
-      for(let i=1;i<=8;i++){ const al = (i===4||i===8)?"right":(i===1||i===6)?"center":"left";
-        sty(r.getCell(i),{al:al, nf:(i===1||i===6)?"dd/mm/yyyy":((i===4||i===8)?USD:null), fill:fill}); }
+      for(let i=1;i<=9;i++){ const al = (i===4||i===9)?"right":(i===1||i===6||i===7)?"center":"left";
+        sty(r.getCell(i),{al:al, nf:(i===1||i===6||i===7)?"dd/mm/yyyy":((i===4||i===9)?USD:null), fill:fill}); }
       f++; });
     const tr = ws.getRow(f); tr.getCell(1).value = "TOTAL";
     tr.getCell(4).value = {formula:"SUM(D"+i0+":D"+(f-1)+")"};
-    tr.getCell(8).value = {formula:"SUM(H"+i0+":H"+(f-1)+")"};
-    for(let i=1;i<=8;i++) sty(tr.getCell(i),{b:true,col:"FFFFFFFF",fill:NAVY,al:(i===4||i===8)?"right":"left",nf:(i===4||i===8)?USD:null});
+    tr.getCell(9).value = {formula:"SUM(I"+i0+":I"+(f-1)+")"};
+    for(let i=1;i<=9;i++) sty(tr.getCell(i),{b:true,col:"FFFFFFFF",fill:NAVY,al:(i===4||i===9)?"right":"left",nf:(i===4||i===9)?USD:null});
     ws.views = [{state:"frozen", ySplit:3}];
   });
 
