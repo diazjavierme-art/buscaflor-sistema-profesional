@@ -58,6 +58,9 @@ section{margin-top:28px}
 .arch .est.bien{color:var(--verde)}
 
 .desplazable{overflow-x:auto;border:1px solid var(--linea)}
+.buscador{width:100%;border:1px solid var(--linea2);background:#fff;padding:9px 12px;font-size:13px;margin-bottom:10px}
+.buscador:focus{outline:0;border-color:var(--azul);box-shadow:0 0 0 2px var(--azulclaro)}
+.buscador::placeholder{color:var(--apagado)}
 table{border-collapse:collapse;font-size:12px}
 thead th{background:var(--navy);color:#fff;font-size:9px;letter-spacing:.06em;text-transform:uppercase;font-weight:700;text-align:center;padding:7px 6px;white-space:pre-line;position:sticky;top:0;z-index:2;border-right:1px solid rgba(255,255,255,.15)}
 tbody td{border-bottom:1px solid var(--linea);border-right:1px solid var(--linea);padding:0;white-space:nowrap;background:#fff}
@@ -205,6 +208,7 @@ footer{border-top:1px solid var(--linea);margin-top:36px;padding:15px 20px;font-
 <div id="panelProv">
 <section>
   <div class="eyebrow"><b>3</b> Registro de facturas · múltiples proveedores <span class="der" id="detProv">0 facturas</span></div>
+  <input id="buscarProv" class="buscador" type="search" placeholder="Buscar por proveedor, concepto, nº factura, CIF o categoría…" autocomplete="off">
   <div class="desplazable"><table id="tProv"><thead id="hProv"></thead><tbody id="bProv"></tbody></table></div>
   <div class="acciones">
     <button class="btn" onclick="addProv()">Añadir a mano</button>
@@ -482,6 +486,7 @@ const $ = s => document.querySelector(s);
 const num = v => { const n = parseFloat(String(v==null?"":v).replace(/\s/g,"").replace(/\.(?=\d{3}\b)/g,"").replace(",",".")); return isFinite(n)?n:0; };
 const fmt = (n,d) => (isFinite(n)?n:0).toLocaleString("es-ES",{minimumFractionDigits:d==null?2:d,maximumFractionDigits:d==null?2:d});
 const esc = s => String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const normBusca = s => String(s==null?"":s).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
 const guarda = (k,v) => { try{ localStorage.setItem(k,v); }catch(e){} };
 const leeLS = k => { try{ return localStorage.getItem(k); }catch(e){ return null; } };
 const mesDe = f => (f||"").slice(0,7) || "0000-00";
@@ -1047,10 +1052,22 @@ function celda(tipo, i, c, val, clase){
 function pintarProv(){
   $("#hProv").innerHTML = cab(PCOLS, true);
   const tb = $("#bProv");
-  const lista = S.prov.map((f,i) => ({f:f,i:i}))
-    .sort((a,b) => (a.f.fecha||"").localeCompare(b.f.fecha||"") || (a.f.numero||"").localeCompare(b.f.numero||""));
+  const buscador = $("#buscarProv");
+  const q = buscador ? normBusca(buscador.value.trim()) : "";
+  let base_lista = S.prov.map((f,i) => ({f:f,i:i}));
+  if(q){
+    base_lista = base_lista.filter(o => {
+      const f = o.f;
+      const campos = normBusca([f.numero,f.proveedor,f.concepto,f.categoria,f.cif].join(" | "));
+      return campos.indexOf(q) >= 0;
+    });
+  }
+  /* siempre por fecha de factura, de más reciente a más antigua */
+  const lista = base_lista.sort((a,b) => (b.f.fecha||"").localeCompare(a.f.fecha||"") || (b.f.numero||"").localeCompare(a.f.numero||""));
   if(!lista.length){
-    tb.innerHTML = '<tr><td colspan="'+(PCOLS.length+1)+'" class="vacio">Sin facturas. Suelta los PDF arriba o añade una a mano.</td></tr>';
+    tb.innerHTML = '<tr><td colspan="'+(PCOLS.length+1)+'" class="vacio">'
+      + (q ? "Ninguna factura coincide con la búsqueda." : "Sin facturas. Suelta los PDF arriba o añade una a mano.")
+      + '</td></tr>';
   } else {
     let h = "", mes = null;
     lista.forEach(o => {
@@ -1069,18 +1086,19 @@ function pintarProv(){
     tb.innerHTML = h;
   }
   let base=0, iva=0, tot=0, pend=0, nPend=0;
-  S.prov.forEach(f => {
+  lista.forEach(o => {
+    const f = o.f;
     base += num(f.base); iva += num(f.iva1imp)+num(f.iva2imp); tot += num(f.total);
     if(/pendiente|factura/i.test(f.formaPago||"")){ pend += num(f.total); nPend++; }
   });
-  $("#pNum").textContent = S.prov.length;
+  $("#pNum").textContent = lista.length;
   $("#pBase").textContent = fmt(base);
   $("#pIva").textContent = fmt(iva);
   $("#pTotal").textContent = fmt(tot);
   $("#pPend").textContent = fmt(pend);
   $("#pPendDet").textContent = nPend ? "EUR · "+nPend+" factura(s)" : "EUR · nada marcado";
   $("#cProv").textContent = S.prov.length;
-  $("#detProv").textContent = S.prov.length + " facturas";
+  $("#detProv").textContent = q ? (lista.length+" de "+S.prov.length+" facturas") : (S.prov.length + " facturas");
   const mesesP = [];
   S.prov.forEach(f => { const m = mesDe(f.fecha); if(mesesP.indexOf(m)<0) mesesP.push(m); });
   mesesP.sort();
@@ -1329,18 +1347,24 @@ function pintarVentas(){
   const meses = lista.map(v => v.mes);
   const anios = [];
   meses.forEach(m => { const a = m.slice(0,4); if(anios.indexOf(a)<0) anios.push(a); });
+
+  /* El gráfico "Ventas por mes" solo enseña los 2 últimos años (comparativa reciente);
+     el resto de la pestaña (año contra año, cobro, mezcla...) sigue viendo el histórico entero. */
+  const aniosChart = anios.slice(-2);
+  const mesesChart = meses.filter(m => aniosChart.indexOf(m.slice(0,4)) >= 0);
   const datos = {}, totAnio = {};
   lista.forEach(v => {
     const a = v.mes.slice(0,4);
+    if(aniosChart.indexOf(a) < 0) return;
     datos[v.mes] = {}; datos[v.mes][a] = num(v.importe);
     totAnio[a] = (totAnio[a]||0) + num(v.importe);
   });
-  const serie = anios.map(a => ({k:a, nom:a, color:COLOR_ANIO[a] || "#5B7C99"}));
-  grafApiladas("#gVentMes", meses, serie, datos, "Importe facturado por mes, color por año");
+  const serie = aniosChart.map(a => ({k:a, nom:a, color:COLOR_ANIO[a] || "#5B7C99"}));
+  grafApiladas("#gVentMes", mesesChart, serie, datos, "Importe facturado por mes, color por año · últimos 2 años");
   leyenda("#lVentAnios", serie, totAnio);
   $("#cVent").textContent = lista.length;
-  $("#detVent").textContent = lista.length
-    ? lista.length+" meses · "+meses[0]+" a "+meses[meses.length-1] : "sin datos";
+  $("#detVent").textContent = mesesChart.length
+    ? mesesChart.length+" meses · "+mesesChart[0]+" a "+mesesChart[mesesChart.length-1] : "sin datos";
 
   /* cobro de lo facturado, solo meses que traen el listado completo */
   const conCobro = lista.filter(v => num(v.total));
@@ -1679,8 +1703,19 @@ document.addEventListener("input", e => {
   const col = _tab.filter(c => c.k === e.target.dataset.k)[0];
   const v = (col && (col.f==="e" || col.f==="n" || col.f==="p")) ? num(e.target.value) : e.target.value;
   S[t][e.target.dataset.i][e.target.dataset.k] = v;
-  if(t==="vall") pintarVall(); else if(t==="ventas"){ pintarVentas(); pintarRatios(); } else if(t==="intl"||t==="transf") pintarIntl(); else pintarProv();
+  /* No repintamos con cada tecla: solo se guarda el dato. La tabla, los totales y las
+     gráficas se refrescan al salir del campo (evento "change" de abajo), para que
+     teclear vaya fluido aunque haya cientos de filas y no se pierda el cursor. */
 });
+document.addEventListener("change", e => {
+  const t = e.target.dataset.t;
+  if(!t) return;
+  if(t==="vall") pintarVall();
+  else if(t==="ventas"){ pintarVentas(); pintarRatios(); }
+  else if(t==="intl"||t==="transf") pintarIntl();
+  else pintarProv();
+});
+$("#buscarProv").addEventListener("input", () => pintarProv());
 document.addEventListener("click", e => {
   const q = e.target.dataset.q;
   if(!q) return;
