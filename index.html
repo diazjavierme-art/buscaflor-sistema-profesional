@@ -22,6 +22,7 @@ button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit
 .marca .n{font-weight:700;letter-spacing:.18em;font-size:15px}
 .marca .s{font-size:11px;letter-spacing:.16em;text-transform:uppercase;opacity:.75}
 .marca .v{margin-left:auto;font-family:var(--mono);font-size:11px;opacity:.6}
+.autoguardado{display:flex;align-items:center;gap:7px;font-size:11px;opacity:.85;white-space:nowrap}
 
 nav{border-bottom:1px solid var(--linea);display:flex;overflow-x:auto;background:#F7FAFC}
 nav button{background:none;border:0;border-bottom:2px solid transparent;padding:11px 18px;cursor:pointer;white-space:nowrap;font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:var(--apagado)}
@@ -158,6 +159,7 @@ footer{border-top:1px solid var(--linea);margin-top:36px;padding:15px 20px;font-
 <header class="marca">
   <span class="n">BUSCAFLOR</span>
   <span class="s">Compras y gastos</span>
+  <span class="autoguardado" id="autoEstado" title="Se guarda solo en este navegador; para un archivo aparte usa Guardar trabajo"><span class="punto" id="autoPunto"></span><span id="autoTxt">—</span></span>
   <span class="v">v4.0</span>
 </header>
 
@@ -871,6 +873,7 @@ function pintarIntl(){
   $("#detIntl").textContent = nF+" fincas \u00b7 "+S.intl.length+" facturas \u00b7 pago mensual";
   $("#detFinca").textContent = S.fincaSel ? "finca: "+S.fincaSel : "todas las fincas";
   $("#detTransf").textContent = S.transf.length+" transferencia(s) registradas";
+  programarAutoguardado();
 }
 /* Aplica una transferencia internacional a las facturas que cita su concepto.
    Si el importe cuadra, las marca pagadas. Si no cuadra, no toca nada y avisa,
@@ -1115,6 +1118,7 @@ function pintarProv(){
   ranking("#gProvCat", serieP.map(s => ({nom:s.nom, color:s.color, valor:totCat[s.k]})));
   $("#ejeProv").textContent = mesesP.length ? mesesP.length+" meses · base imponible sin IVA" : "base imponible, sin IVA";
   avisos("#avProv", S.prov, (f) => probP(f, derP(f)), f => f.numero);
+  programarAutoguardado();
 }
 
 function pintarVall(){
@@ -1180,6 +1184,7 @@ function pintarVall(){
   $("#ejeVall").textContent = mesesV.length ? mesesV.length+" meses · importe base sin IVA" : "importe base, sin IVA";
   pintarPagos();
   avisos("#avVall", S.vall, (f) => probV(f, derV(f)), f => f.numero);
+  programarAutoguardado();
 }
 function avisos(sel, lista, fn, id){
   const av = [];
@@ -1431,6 +1436,7 @@ function pintarVentas(){
       + '<td class="calc">'+fmt(tk)+' €</td>'
       + '<td><button class="quitar" data-q="ventas" data-i="'+i+'">×</button></td></tr>';
   }).join("") : '<tr><td colspan="5" class="vacio">Sin meses cargados.</td></tr>';
+  programarAutoguardado();
 }
 function addVenta(){
   S.ventas.push({mes:new Date().toISOString().slice(0,7), importe:0, lineas:0});
@@ -1742,6 +1748,8 @@ function vaciar(t){
 function guardar(){
   bajar(new Blob([JSON.stringify(S,null,1)],{type:"application/json"}),
         "buscaflor_gastos_"+new Date().toISOString().slice(0,10)+".json");
+  _cambiosSinExportar = false;
+  marcarAutoEstado(true, "Descargado como archivo · "+new Date().toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"}));
 }
 $("#fJson").onchange = async e => {
   const f = e.target.files[0]; if(!f) return;
@@ -1757,6 +1765,62 @@ function bajar(blob,nombre){
   const a = document.createElement("a");
   a.href = u; a.download = nombre; a.click();
   setTimeout(() => URL.revokeObjectURL(u), 4000);
+}
+
+/* ===================== Autoguardado (en este navegador) =====================
+   Guarda el trabajo en localStorage cada vez que cambia algo, para que un cierre
+   accidental de la pestaña, un refresco o un cuelgue del navegador no borren nada.
+   No sustituye a "Guardar trabajo" (el archivo .json es tu copia de verdad, la que
+   puedes llevarte a otro sitio); esto es solo la red de seguridad de este navegador. */
+const AUTOSAVE_KEY = "bf_autoguardado_v1";
+let _cargaInicialLista = false;   /* para no contar la carga inicial como "cambio sin guardar" */
+let _cambiosSinExportar = false;  /* true = hay cambios que no se han bajado como archivo .json */
+let _autoT = null;
+
+function snapshotEstado(){
+  return {prov:S.prov, vall:S.vall, pagos:S.pagos, ventas:S.ventas, familias:S.familias,
+    fin:S.fin, intl:S.intl, transf:S.transf, fincaSel:S.fincaSel, guardadoEn:new Date().toISOString()};
+}
+function marcarAutoEstado(ok, msg){
+  const p = $("#autoPunto"), t = $("#autoTxt");
+  if(!p || !t) return;
+  p.className = "punto" + (ok ? " on" : "");
+  t.textContent = msg || (ok ? ("Autoguardado "+new Date().toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit",second:"2-digit"})+" · en este navegador") : "Sin autoguardar");
+}
+function autoguardarAhora(){
+  try{
+    localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(snapshotEstado()));
+    marcarAutoEstado(true);
+  }catch(e){ marcarAutoEstado(false, "no se pudo autoguardar aquí"); }
+}
+function programarAutoguardado(){
+  if(!_cargaInicialLista) return;
+  _cambiosSinExportar = true;
+  clearTimeout(_autoT);
+  _autoT = setTimeout(autoguardarAhora, 1200);
+}
+window.addEventListener("beforeunload", e => {
+  if(!_cambiosSinExportar) return;
+  e.preventDefault();
+  e.returnValue = "";
+});
+/* Al abrir, si hay un autoguardado de una sesión anterior en este mismo navegador,
+   se ofrece recuperarlo (sustituye a lo que trae la página si se acepta). */
+function ofrecerRecuperarAutoguardado(){
+  let raw; try{ raw = localStorage.getItem(AUTOSAVE_KEY); }catch(e){ raw = null; }
+  if(!raw) return false;
+  let d; try{ d = JSON.parse(raw); }catch(e){ return false; }
+  const fecha = d.guardadoEn ? new Date(d.guardadoEn).toLocaleString("es-ES") : "fecha desconocida";
+  const nFact = (d.prov||[]).length + (d.vall||[]).length;
+  const recuperar = confirm(
+    "Hay un autoguardado en este navegador del "+fecha+" ("+nFact+" facturas entre proveedores y Vallinoto).\n\n"
+    + "Aceptar: recuperarlo (sustituye a los datos con los que abre la página).\n"
+    + "Cancelar: seguir con los datos tal como vienen en la página.");
+  if(!recuperar) return false;
+  S.prov = d.prov||[]; S.vall = d.vall||[]; S.pagos = d.pagos||[]; S.ventas = d.ventas||[];
+  S.familias = d.familias||{}; S.fin = d.fin||null; S.intl = d.intl||[]; S.transf = d.transf||[];
+  S.fincaSel = d.fincaSel||"";
+  return true;
 }
 
 /* ===================== Excel ===================== */
@@ -2089,7 +2153,15 @@ async function leerLibro(file){
 
 document.getElementById("fechaPago").value = new Date().toISOString().slice(0,10);
 estadoClave();
+ofrecerRecuperarAutoguardado();
 pintar();
+_cargaInicialLista = true;
+_cambiosSinExportar = false;   /* la carga inicial (o la recuperación) no cuenta como "cambio sin guardar" */
+(function(){
+  let raw; try{ raw = localStorage.getItem(AUTOSAVE_KEY); }catch(e){ raw = null; }
+  if(raw){ try{ const d = JSON.parse(raw); marcarAutoEstado(true, "Último autoguardado: "+new Date(d.guardadoEn).toLocaleString("es-ES",{hour:"2-digit",minute:"2-digit",day:"2-digit",month:"2-digit"})); }catch(e){} }
+  else marcarAutoEstado(false, "Sin autoguardar todavía");
+})();
 </script>
 </body>
 </html>
