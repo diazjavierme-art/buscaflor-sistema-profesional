@@ -57,11 +57,15 @@ section{margin-top:28px}
 .arch .est.mal{color:#A02020}
 .arch .est.bien{color:var(--verde)}
 
-.desplazable{overflow-x:auto;border:1px solid var(--linea)}
+.desplazable{overflow-x:auto;overflow-y:hidden;border:1px solid var(--linea);-webkit-overflow-scrolling:touch;scrollbar-width:thin}
+.desplazable::-webkit-scrollbar{height:12px}
+.desplazable::-webkit-scrollbar-thumb{background:var(--linea2);border-radius:6px}
+.desplazable::-webkit-scrollbar-track{background:#EEF3F7}
+.desplazable table{min-width:max-content}
 table{border-collapse:collapse;font-size:12px}
 thead th{background:var(--navy);color:#fff;font-size:9px;letter-spacing:.06em;text-transform:uppercase;font-weight:700;text-align:center;padding:7px 6px;white-space:pre-line;position:sticky;top:0;z-index:2;border-right:1px solid rgba(255,255,255,.15)}
 tbody td{border-bottom:1px solid var(--linea);border-right:1px solid var(--linea);padding:0;white-space:nowrap;background:#fff}
-tbody td input,tbody td select{width:100%;min-width:100%;border:0;background:transparent;padding:5px 6px;font-size:12px}
+tbody td input,tbody td select{width:100%;border:0;background:transparent;padding:5px 6px;font-size:12px}
 tbody td.n input{text-align:right;font-family:var(--mono)}
 tbody td.c input,tbody td.c select{text-align:center}
 tbody td.calc{font-family:var(--mono);text-align:right;padding:5px 6px;color:var(--apagado);background:#F6F9FB}
@@ -1134,8 +1138,9 @@ function cab(cols, extra){
 function celda(tipo, i, c, val, clase){
   const cl = (c.f==="e"||c.f==="n"||c.f==="p") ? "n" : (c.a==="center" ? "c" : "");
   const extra = (c.clave?" clave1":"") + (c.total?" total1":"") + (clase?" "+clase:"");
-  if(c.f === "d") return '<td class="c'+extra+'"><input type="date" data-t="'+tipo+'" data-i="'+i+'" data-k="'+c.k+'" value="'+esc(val)+'"></td>';
-  return '<td class="'+cl+extra+'"><input data-t="'+tipo+'" data-i="'+i+'" data-k="'+c.k+'" value="'+esc(val)+'"></td>';
+  const w = c.w ? ' style="min-width:'+Math.round(c.w*7)+'px"' : "";
+  if(c.f === "d") return '<td class="c'+extra+'"'+w+'><input type="date" data-t="'+tipo+'" data-i="'+i+'" data-k="'+c.k+'" value="'+esc(val)+'"></td>';
+  return '<td class="'+cl+extra+'"'+w+'><input data-t="'+tipo+'" data-i="'+i+'" data-k="'+c.k+'" value="'+esc(val)+'"></td>';
 }
 
 function pintarProv(){
