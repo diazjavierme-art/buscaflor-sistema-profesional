@@ -29,7 +29,8 @@ nav button[aria-selected="true"]{color:var(--navy);border-bottom-color:var(--nav
 nav button:focus-visible{outline:2px solid var(--azul);outline-offset:-2px}
 nav .cnt{font-family:var(--mono);font-size:10px;opacity:.65;margin-left:6px}
 
-main{max-width:100%;margin:0 auto;padding:0 20px 80px}
+main{max-width:1600px;margin:0 auto;padding:0 20px 80px;box-sizing:border-box}
+section{max-width:100%;box-sizing:border-box}
 section{margin-top:28px}
 .eyebrow{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--apagado);border-bottom:1px solid var(--linea);padding-bottom:6px;margin-bottom:14px;display:flex;align-items:center;gap:10px}
 .eyebrow b{color:var(--navy);font-weight:700}
@@ -57,11 +58,14 @@ section{margin-top:28px}
 .arch .est.mal{color:#A02020}
 .arch .est.bien{color:var(--verde)}
 
-.desplazable{overflow-x:auto;overflow-y:hidden;border:1px solid var(--linea);-webkit-overflow-scrolling:touch;scrollbar-width:thin}
-.desplazable::-webkit-scrollbar{height:12px}
-.desplazable::-webkit-scrollbar-thumb{background:var(--linea2);border-radius:6px}
-.desplazable::-webkit-scrollbar-track{background:#EEF3F7}
+.desplazable{overflow-x:scroll;overflow-y:hidden;border:1px solid var(--linea);-webkit-overflow-scrolling:touch;scrollbar-width:auto;position:relative;max-width:100%;box-sizing:border-box}
+.desplazable::-webkit-scrollbar{height:16px;-webkit-appearance:none}
+.desplazable::-webkit-scrollbar-thumb{background:var(--navy);border-radius:8px;border:3px solid #EEF3F7}
+.desplazable::-webkit-scrollbar-track{background:#DDE6EE}
 .desplazable table{min-width:max-content}
+.scrollhint{display:flex;gap:8px;align-items:center;margin:8px 0 4px;font-size:11px;color:var(--apagado)}
+.scrollbtn{background:var(--navy);color:#fff;border:0;border-radius:5px;padding:7px 14px;cursor:pointer;font-size:15px;font-weight:700;line-height:1}
+.scrollbtn:active{background:var(--azul)}
 table{border-collapse:collapse;font-size:12px}
 thead th{background:var(--navy);color:#fff;font-size:9px;letter-spacing:.06em;text-transform:uppercase;font-weight:700;text-align:center;padding:7px 6px;white-space:pre-line;position:sticky;top:0;z-index:2;border-right:1px solid rgba(255,255,255,.15)}
 tbody td{border-bottom:1px solid var(--linea);border-right:1px solid var(--linea);padding:0;white-space:nowrap;background:#fff}
@@ -151,7 +155,20 @@ tr.banda td{background:var(--azul)!important;color:#fff;font-size:10px;letter-sp
 .rbar i{display:block;height:100%}
 .rfila .imp,.rfila .pct{font-family:var(--mono);font-size:12px;text-align:right}
 .rfila .pct{color:var(--apagado)}
-@media(max-width:640px){.rfila{grid-template-columns:1fr 90px 54px}.rfila .rbar{display:none}}
+@media(max-width:640px){.rfila{grid-template-columns:1fr 90px 54px}.rfila .rbar{display:none}
+  main{padding:0 10px 60px}
+  .marca{padding:10px 12px}
+  .cifras{flex-wrap:wrap}
+  .scrollhint{flex-wrap:wrap;font-size:10px}
+  .scrollbtn{flex:1;padding:10px 0;font-size:14px}
+  .buscador{max-width:100%}
+  thead th{font-size:8px;padding:6px 4px}
+  tbody td input,tbody td select{font-size:11px;padding:5px 5px}
+}
+@media(min-width:1100px){
+  /* en ordenador ancho: las tablas que caben llenan el espacio; las anchas (Vallinoto) desbordan con barra */
+  #tProv, #tVent{min-width:100%}
+}
 footer{border-top:1px solid var(--linea);margin-top:36px;padding:15px 20px;font-size:11px;color:var(--apagado)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
@@ -245,6 +262,10 @@ footer{border-top:1px solid var(--linea);margin-top:36px;padding:15px 20px;font-
 <section>
   <div class="eyebrow"><b>3</b> Facturas Vallinoto Cargo <span class="der" id="detVall">0 facturas</span></div>
   <input class="buscador" id="buscar_vall" placeholder="Buscar en la tabla…" oninput="S.buscar.vall=this.value; pintarVall()">
+  <div class="scrollhint"><span>Tabla ancha — deslízala o usa las flechas:</span>
+    <button class="scrollbtn" onclick="scrollTabla('tVall',-1)">‹ Izquierda</button>
+    <button class="scrollbtn" onclick="scrollTabla('tVall',1)">Derecha ›</button>
+  </div>
   <div class="desplazable"><table id="tVall"><thead id="hVall"></thead><tbody id="bVall"></tbody></table></div>
   <div class="acciones">
     <button class="btn" onclick="addVall()">Añadir a mano</button>
@@ -1132,6 +1153,13 @@ function conciliarIntl(){
 }
 
 /* ===================== Pintado ===================== */
+function scrollTabla(idTabla, dir){
+  const tabla = document.getElementById(idTabla);
+  if(!tabla) return;
+  const cont = tabla.closest(".desplazable");
+  if(cont) cont.scrollBy({left: dir * Math.round(cont.clientWidth * 0.7), behavior:"smooth"});
+}
+
 function cab(cols, extra){
   return "<tr>" + cols.map(c => '<th style="min-width:'+Math.round(c.w*7)+'px">'+esc(c.t)+"</th>").join("") + (extra?"<th></th>":"") + "</tr>";
 }
