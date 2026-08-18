@@ -84,6 +84,9 @@ tbody td.n input{text-align:right;font-family:var(--mono)}
 tbody td.c input,tbody td.c select{text-align:center}
 tbody td.calc{font-family:var(--mono);text-align:right;padding:5px 6px;color:var(--apagado);background:#F6F9FB}
 tbody td input:focus,tbody td select:focus{outline:0;background:#EAF3FA}
+td.ancha{white-space:normal;vertical-align:top}
+td.ancha textarea{width:100%;min-height:46px;border:0;background:transparent;padding:6px;font-size:12px;font-family:inherit;line-height:1.4;resize:vertical;white-space:pre-wrap;word-break:break-word}
+td.ancha textarea:focus{outline:0;background:#EAF3FA}
 tbody tr.mala td{background:var(--alertafondo)}
 tbody tr.mala td.calc{background:#F7EEE0}
 td.clave1{background:var(--azulclaro)!important;font-weight:600}
@@ -1258,15 +1261,15 @@ function conciliarIntl(){
 /* ===================== Pintado ===================== */
 /* ===================== Seguros ===================== */
 const SCOLS = [
-  {k:"compania",  t:"Compañía",      w:20, f:"t", a:"left"},
-  {k:"tipo",      t:"Tipo",          w:18, f:"t", a:"left"},
-  {k:"poliza",    t:"Nº póliza",     w:18, f:"t", a:"left"},
-  {k:"prima",     t:"Prima anual €", w:14, f:"e", a:"right"},
-  {k:"formaPago", t:"Forma de pago", w:14, f:"t", a:"center"},
-  {k:"cobertura", t:"Cobertura",     w:26, f:"t", a:"left"},
+  {k:"compania",  t:"Compañía",      w:16, f:"t", a:"left"},
+  {k:"tipo",      t:"Tipo",          w:20, f:"t", a:"left", wrap:true},
+  {k:"poliza",    t:"Nº póliza",     w:16, f:"t", a:"left"},
+  {k:"prima",     t:"Prima anual €", w:12, f:"e", a:"right"},
+  {k:"formaPago", t:"Forma de pago", w:16, f:"t", a:"left", wrap:true},
+  {k:"cobertura", t:"Cobertura",     w:36, f:"t", a:"left", wrap:true},
   {k:"vencimiento",t:"Vence",        w:12, f:"d", a:"center"},
-  {k:"corredor",  t:"Corredor / contacto", w:24, f:"t", a:"left"},
-  {k:"observaciones", t:"Observaciones", w:28, f:"t", a:"left"}
+  {k:"corredor",  t:"Corredor / contacto", w:22, f:"t", a:"left", wrap:true},
+  {k:"observaciones", t:"Observaciones", w:36, f:"t", a:"left", wrap:true}
 ];
 
 function diasHasta(fecha){
@@ -1440,6 +1443,7 @@ function celda(tipo, i, c, val, clase){
   const extra = (c.clave?" clave1":"") + (c.total?" total1":"") + (clase?" "+clase:"");
   const w = c.w ? ' style="min-width:'+Math.round(c.w*7)+'px"' : "";
   if(c.f === "d") return '<td class="c'+extra+'"'+w+'><input type="date" data-t="'+tipo+'" data-i="'+i+'" data-k="'+c.k+'" value="'+esc(val)+'"></td>';
+  if(c.wrap) return '<td class="ancha'+extra+'"'+w+'><textarea data-t="'+tipo+'" data-i="'+i+'" data-k="'+c.k+'" rows="2">'+esc(val)+'</textarea></td>';
   return '<td class="'+cl+extra+'"'+w+'><input data-t="'+tipo+'" data-i="'+i+'" data-k="'+c.k+'" value="'+esc(val)+'"></td>';
 }
 
