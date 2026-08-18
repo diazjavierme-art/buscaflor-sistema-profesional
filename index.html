@@ -65,6 +65,7 @@ section{margin-top:28px}
 .desplazable table{min-width:max-content;transform:rotateX(180deg)}
 .segbox{padding:10px 14px;margin:10px 0;font-size:12px;border-radius:4px;line-height:1.5}
 .segbox.rojo{background:#FDECEC;border-left:4px solid var(--alerta);color:#7A1F1F}
+.notaguardado{max-width:1200px;margin:12px auto 0;padding:8px 14px;font-size:11px;color:var(--apagado);text-align:center}
 .avisofila{display:flex;align-items:center;gap:10px;padding:9px 12px;border:1px solid var(--linea);border-top:none;font-size:12px;flex-wrap:wrap}
 .avisofila:first-child{border-top:1px solid var(--linea)}
 .avisofila.rojo{background:#FDECEC}
@@ -200,6 +201,7 @@ footer{border-top:1px solid var(--linea);margin-top:36px;padding:15px 20px;font-
 
 <main>
 
+<div class="notaguardado">Todo lo que subas o edites se guarda solo en este navegador — no hace falta pulsar nada. "Descargar copia (JSON)" solo sirve para mandármelo o hacer una copia de seguridad fuera del navegador.</div>
 <section>
   <div class="eyebrow"><b>1</b> Lectura automática <span class="der">la clave se queda en este navegador, nunca sale del equipo</span></div>
   <div class="clave">
@@ -241,7 +243,7 @@ footer{border-top:1px solid var(--linea);margin-top:36px;padding:15px 20px;font-
   <div class="desplazable"><table id="tProv"><thead id="hProv"></thead><tbody id="bProv"></tbody></table></div>
   <div class="acciones">
     <button class="btn" onclick="addProv()">Añadir a mano</button>
-    <button class="btn" onclick="guardar()">Guardar trabajo</button>
+    <button class="btn" onclick="guardar()">Descargar copia (JSON)</button>
     <button class="btn" onclick="document.getElementById('fJson').click()">Cargar trabajo</button>
     <button class="btn" onclick="vaciar('prov')">Vaciar</button>
     <button class="btn solido" onclick="excelProv()">Descargar registro de proveedores</button>
@@ -274,7 +276,7 @@ footer{border-top:1px solid var(--linea);margin-top:36px;padding:15px 20px;font-
   <div class="desplazable"><table id="tVall"><thead id="hVall"></thead><tbody id="bVall"></tbody></table></div>
   <div class="acciones">
     <button class="btn" onclick="addVall()">Añadir a mano</button>
-    <button class="btn" onclick="guardar()">Guardar trabajo</button>
+    <button class="btn" onclick="guardar()">Descargar copia (JSON)</button>
     <button class="btn" onclick="document.getElementById('fJson').click()">Cargar trabajo</button>
     <button class="btn" onclick="vaciar('vall')">Vaciar</button>
     <button class="btn solido" onclick="excelVall()">Descargar libro Vallinoto</button>
@@ -330,7 +332,7 @@ footer{border-top:1px solid var(--linea);margin-top:36px;padding:15px 20px;font-
     <div class="cifra"><div class="k">Pendiente en euros</div><div class="v" id="iPendEur">0,00</div><div class="u">EUR · a 1,1650</div></div>
   </div>
   <div class="acciones">
-    <button class="btn" onclick="guardar()">Guardar trabajo</button>
+    <button class="btn" onclick="guardar()">Descargar copia (JSON)</button>
     <button class="btn solido" onclick="excelIntl()">Descargar estados de cuenta</button>
   </div>
 </section>
@@ -370,7 +372,7 @@ footer{border-top:1px solid var(--linea);margin-top:36px;padding:15px 20px;font-
   <div id="segAviso"></div>
   <div class="acciones">
     <button class="btn solido" onclick="addSeguro()">Añadir seguro</button>
-    <button class="btn" onclick="guardar()">Guardar trabajo</button>
+    <button class="btn" onclick="guardar()">Descargar copia (JSON)</button>
   </div>
 </section>
 <section>
@@ -418,7 +420,7 @@ footer{border-top:1px solid var(--linea);margin-top:36px;padding:15px 20px;font-
   <div id="cliAviso"></div>
   <div class="acciones">
     <button class="btn solido" onclick="addCliente()">Añadir factura</button>
-    <button class="btn" onclick="guardar()">Guardar trabajo</button>
+    <button class="btn" onclick="guardar()">Descargar copia (JSON)</button>
   </div>
 </section>
 <section>
@@ -2147,7 +2149,46 @@ function ranking(sel, items, unidad, dec){
     + '<div class="pct">'+(gran ? fmt(x.valor/gran*100,1) : "0,0")+'%</div></div>').join("");
 }
 
-function pintar(){ pintarProv(); pintarVall(); pintarIntl(); pintarSeg(); pintarVentas(); pintarCli(); pintarRatios(); }
+function pintar(){ pintarProv(); pintarVall(); pintarIntl(); pintarSeg(); pintarVentas(); pintarCli(); pintarRatios(); autoguardar(); }
+
+/* ===================== Autoguardado local (red de seguridad) =====================
+   No sustituye a "Guardar trabajo" (que descarga el JSON real): esto es una copia
+   automática en el propio navegador para no perder el trabajo si se cierra o recarga
+   la pestaña sin haber pulsado guardar. Se sobreescribe sola, no crea historial. */
+let _autoguardadoTimer = null;
+function autoguardar(){
+  clearTimeout(_autoguardadoTimer);
+  _autoguardadoTimer = setTimeout(() => {
+    try{
+      localStorage.setItem("bf_autosave", JSON.stringify({t: Date.now(), datos: S}));
+    }catch(e){ /* si el navegador va justo de espacio, no pasa nada, solo no se autoguarda */ }
+  }, 800);
+}
+function comprobarAutoguardado(){
+  let raw;
+  try{ raw = localStorage.getItem("bf_autosave"); }catch(e){ return; }
+  if(!raw) return;
+  let ag;
+  try{ ag = JSON.parse(raw); }catch(e){ return; }
+  if(!ag || !ag.datos) return;
+  /* Se aplica solo, sin pedir permiso: el navegador manda. El JSON que traiga la página
+     es solo el punto de partida por si es la primera vez que abres esta URL. */
+  Object.keys(ag.datos).forEach(k => { S[k] = ag.datos[k]; });
+  const mins = Math.round((Date.now()-ag.t)/60000);
+  const cuando = mins < 1 ? "hace un momento" : mins < 60 ? "hace "+mins+" min" : "hace "+Math.round(mins/60)+"h";
+  const banner = document.createElement("div");
+  banner.id = "avisoAuto";
+  banner.style.cssText = "position:sticky;top:0;z-index:50;background:#EAF6EE;border-bottom:2px solid #1E8449;padding:8px 16px;font-size:12px;color:#1E5631;display:flex;gap:12px;align-items:center;justify-content:center";
+  banner.innerHTML = '✓ Recuperado tu trabajo guardado en este navegador ('+cuando+').'
+    + ' <a href="#" id="lnkDescartarAuto" style="color:#1E5631;text-decoration:underline">No, usar el archivo que acabo de abrir</a>';
+  document.body.prepend(banner);
+  setTimeout(() => { const b = $("#avisoAuto"); if(b) b.style.display="none"; }, 6000);
+  $("#lnkDescartarAuto").onclick = (e) => {
+    e.preventDefault();
+    try{ localStorage.removeItem("bf_autosave"); }catch(err){}
+    location.reload();
+  };
+}
 
 document.addEventListener("input", e => {
   const t = e.target.dataset.t;
@@ -2167,6 +2208,7 @@ document.addEventListener("change", e => {
   else if(t==="intl" || t==="transf") pintarIntl();
   else if(t==="seguros") pintarSeg();
   else if(t==="clientes") pintarCli();
+  if(t) autoguardar();
 });
 document.addEventListener("click", e => {
   const q = e.target.dataset.q;
@@ -2564,6 +2606,7 @@ async function leerLibro(file){
 
 document.getElementById("fechaPago").value = new Date().toISOString().slice(0,10);
 estadoClave();
+comprobarAutoguardado();
 pintar();
 </script>
 </body>
